@@ -103,7 +103,7 @@ void loop() {
         Serial.print("Distance measured (mm) = ");
         Serial.println(dis);
       }
-      xBleDoughHeight.sendData(dis);
+      xBleDoughHeight.sendHeightData(dis);
     }
   }
   delay(500);

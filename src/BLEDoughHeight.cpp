@@ -6,25 +6,61 @@ void BLEDoughHeight::initBLE() {
     pServer = BLEDevice::createServer();
     pServer->setCallbacks(new TheServerCallBacks(this));
     pService = pServer->createService(DOUGH_HEIGHT_SERVICE_UUID);
-    pTxCharacteristic = pService->createCharacteristic(
+
+
+    //Height Measure
+    pHeightCharacteristic = pService->createCharacteristic(
 										CHARACTERISTIC_HEIGHT_UUID,
 										BLECharacteristic::PROPERTY_NOTIFY |
                                         BLECharacteristic::PROPERTY_READ
 									);
-    pTxCharacteristic->setCallbacks(new theCharacteristicCallbacks());
+    pHeightCharacteristic->setCallbacks(new heightCharacteristicCallbacks());
 
     BLEDescriptor doughHeightDescriptor(BLEUUID((uint16_t)0x2902));
     doughHeightDescriptor.setValue("Dough Height");
-    pTxCharacteristic->addDescriptor(&doughHeightDescriptor);
-    
-    pTxCharacteristic->setValue("N/A");
+    pHeightCharacteristic->addDescriptor(&doughHeightDescriptor);
 
-    // // pRxCharacteristic = pService->createCharacteristic(
-	// // 									CHARACTERISTIC_UUID_RX,
-	// // 									BLECharacteristic::PROPERTY_WRITE
-	// // 									);
+    BLEDescriptor heightRWDescriptor(BLEUUID((uint16_t)0x2901));//read write
+    heightRWDescriptor.setValue("Dough Height in mm");
+    pHeightCharacteristic->addDescriptor(&heightRWDescriptor);
 
-    // pRxCharacteristic->setCallbacks(new theCharacteristicCallbacks());
+    pHeightCharacteristic->setValue("N/A");
+
+
+    //Start/Stop
+    pStartCharacteristic = pService->createCharacteristic(
+										CHARACTERISTIC_START_UUID,
+                                        BLECharacteristic::PROPERTY_WRITE
+									);
+    pStartCharacteristic->setCallbacks(new startCharacteristicCallbacks(this));
+
+    BLEDescriptor startDescriptor(BLEUUID((uint16_t)0x2901));
+    startDescriptor.setValue("Start/Stop Service");
+    pStartCharacteristic->addDescriptor(&startDescriptor);
+
+    pStartCharacteristic->setValue("N/A");
+
+
+    //Satus
+    pStatusCharacteristic = pService->createCharacteristic(
+										CHARACTERISTIC_STATUS_UUID,
+										BLECharacteristic::PROPERTY_NOTIFY |
+                                        BLECharacteristic::PROPERTY_READ
+									);
+    pStatusCharacteristic->setCallbacks(new statusCharacteristicCallbacks(this));
+
+    BLEDescriptor statusDescriptor(BLEUUID((uint16_t)0x2902));
+    statusDescriptor.setValue("Service Status");
+    pStatusCharacteristic->addDescriptor(&statusDescriptor);
+
+    BLEDescriptor statusRWDescriptor(BLEUUID((uint16_t)0x2901));//read write
+    statusDescriptor.setValue("Service Status");
+    pStatusCharacteristic->addDescriptor(&statusDescriptor);
+
+    pStatusCharacteristic->setValue("N/A");
+
+
+
     pService->start();
 
     pAdvertising = BLEDevice::getAdvertising();
@@ -40,10 +76,34 @@ bool BLEDoughHeight::isDeviceConnected() {
        return deviceConnected;
 }
 
-void BLEDoughHeight::sendData(int doughHeight) {
+void BLEDoughHeight::sendHeightData(int doughHeight) {
     Serial.printf("BLE Push dought height '%d'\n", doughHeight);
-    static char temperatureCTemp[6];
-    dtostrf(doughHeight, 6, 0, temperatureCTemp);
-    pTxCharacteristic->setValue(temperatureCTemp);
-    pTxCharacteristic->notify();
+    static char doughHeightCTemp[6];
+    dtostrf(doughHeight, 6, 0, doughHeightCTemp);
+    pHeightCharacteristic->setValue(doughHeightCTemp);
+    pHeightCharacteristic->notify();
 }
+
+void BLEDoughHeight::sendStatustData(DoughServcieStatusEnum status) {
+    Serial.printf("BLE Push Service Status '%d'\n", status);
+    static char statusCTemp[6];
+    dtostrf(status, 6, 0, statusCTemp);
+    pStatusCharacteristic->setValue(statusCTemp);
+    pStatusCharacteristic->notify();
+}
+
+
+void BLEDoughHeight::StartFermentation() {
+    Serial.println("BLE Start Fermentation Process.");
+    
+    DoughServcieStatus = DoughServcieStatusEnum::Fermenting;
+    sendStatustData(DoughServcieStatus);
+}
+
+void BLEDoughHeight::StopFermentation() {
+    Serial.println("BLE Stop Fermentation Process.");
+    
+    DoughServcieStatus = DoughServcieStatusEnum::idle;
+    sendStatustData(DoughServcieStatus);
+}
+
