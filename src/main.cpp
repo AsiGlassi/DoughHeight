@@ -1,7 +1,10 @@
 #include <Arduino.h>
+#include <SPI.h>
 #include <Wire.h>
 #include <SparkFun_VL6180X.h>
- 
+//#include <TimeLib.h>
+#include <RTClib.h>
+
 #include "LedDough.h"
 #include "BLEDoughHeight.h"
 #include "DoughServcieStatus.h"
@@ -9,6 +12,9 @@
 
 //Debug
 #define debugMode false
+
+//RTC 
+RTC_DS1307 rtc;
 
 //TOF 
 #define VL6180X_ADDRESS 0x29
@@ -22,7 +28,7 @@ LedDough leds;
 BLEDoughHeight xBleDoughHeight;
 
 //Service Status
-DoughServcieStatusEnum DoughServcieStatus = DoughServcieStatusEnum::idle;
+DoughServcieStatus doughServcieStatus;
 
 //interval
 unsigned long sendInterval = 3000;
@@ -60,30 +66,35 @@ void printIdentification(struct VL6180xIdentification *temp) {
 
 
 void StartFermentation() {
-    Serial.println("Start Fermentation Process.");
+    
+    DateTime currTime = rtc.now();
+    char strFormat[] = "MM-DD-YYYY hh:mm:ss";
+    Serial.print("Start Fermentation Process.");Serial.println(currTime.toString(strFormat));
     
     //set status
-    DoughServcieStatus = DoughServcieStatusEnum::Fermenting;
+    doughServcieStatus.setDoughServcieStatusEnum(DoughServcieStatusEnum::Fermenting);
+    doughServcieStatus.setFermentationStart(currTime);
 
     //Set Light status
     leds.Fermenting();
 
     //update BLE device status changed
-    xBleDoughHeight.sendStatustData(DoughServcieStatus);
+    xBleDoughHeight.sendStatustData(doughServcieStatus.getDoughServcieStatusEnum());
 }
 
 void StopFermentation() {
     Serial.println("Stop Fermentation Process.");
-    
+
     //set status
-    DoughServcieStatus = DoughServcieStatusEnum::idle;
-    
+    doughServcieStatus.setDoughServcieStatusEnum(DoughServcieStatusEnum::idle);
+
     //Set Light status
     leds.idle();
 
     //update BLE device status changed
-    xBleDoughHeight.sendStatustData(DoughServcieStatus);
+    xBleDoughHeight.sendStatustData(doughServcieStatus.getDoughServcieStatusEnum());
 }
+
 
 class DoughServiceBLECallback: public DoughServiceBLECallbacks {
 public:    
@@ -99,17 +110,31 @@ public:
 
 
 void setup() {
+
+  pinMode(LED_BUILTIN, OUTPUT);
+
   // put your setup code here, to run once:
   Serial.begin(115200);
 
-  Serial.println("Starting up");
-  
-  pinMode(LED_BUILTIN, OUTPUT);
+  Serial.println("\n\n --- Starting Dough Fermentation Service ---");
+
+  //RTC 
+  if (!rtc.begin()) {
+    Serial.println("Couldn't find RTC");
+    Serial.flush();
+  }
+   if (! rtc.isrunning()) {
+    Serial.println("RTC is NOT running!");
+       rtc.adjust(DateTime(__DATE__, __TIME__));
+  } 
+  DateTime currTime = rtc.now();
+  char strFormat[] = "MM-DD-YYYY hh:mm:ss";
+  Serial.printf(" --- %s --- \n\n", currTime.toString(strFormat));
 
   //Start TOF Sensor
   Wire.begin();
   disSensor.getIdentification(&identification); // Retrieve manufacture info from device memory
-  printIdentification(&identification);      // Helper function to print all the Module information
+  //printIdentification(&identification);      
 
   if (disSensor.VL6180xInit() != 0) {
     Serial.println("Failed to initialize. Freezing..."); // Initialize device and check for errors
@@ -131,6 +156,7 @@ void setup() {
 
 void loop() {
   
+
   if (xBleDoughHeight.isDeviceConnected()) {
     
     unsigned long now = millis();
