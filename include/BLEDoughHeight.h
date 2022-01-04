@@ -6,6 +6,12 @@
 #include <BLEUtils.h>
 #include <BLE2902.h>
 
+#include "DoughServcieStatus.h"
+
+//BLE Dough Height service call back type
+typedef void (*BleDoughServiceCallbackFunction)(void);
+
+
 // #define UART_SERVICE_UUID      "6E400001-B5A3-F393-E0A9-E50E24DCCA9E" // UART service UUID
 // #define CHARACTERISTIC_UUID_RX "6E400002-B5A3-F393-E0A9-E50E24DCCA9E"
 // #define CHARACTERISTIC_UUID_TX "6E400003-B5A3-F393-E0A9-E50E24DCCA9E"
@@ -17,12 +23,13 @@
 #define CHARACTERISTIC_STATUS_UUID  "a1990b88-249f-45b2-a0b2-ba0f1f90ca0a"
 
 
-enum DoughServcieStatusEnum {
-  idle,
-  Fermenting, 
-  ReachedDesiredFerm, 
-  OverFerm
+class DoughServiceBLECallbacks {
+public:
+	virtual ~DoughServiceBLECallbacks() {};
+	virtual void onStart();
+	virtual void onStop();
 };
+
 
 
 class BLEDoughHeight 
@@ -34,6 +41,8 @@ class BLEDoughHeight
     BLECharacteristic* pStartCharacteristic;
     BLECharacteristic* pStatusCharacteristic;
     BLEAdvertising *pAdvertising;
+
+    DoughServiceBLECallbacks* BLEDoughHeightCallback = NULL;
 
  public:
    DoughServcieStatusEnum DoughServcieStatus = DoughServcieStatusEnum::idle;
@@ -51,8 +60,9 @@ public:
 
     void StartFermentation();
     void StopFermentation();
-
+    void regDoughServiceBLECallback(DoughServiceBLECallbacks* pCallback) {BLEDoughHeightCallback = pCallback;}
 };
+
 
 
 class TheServerCallBacks: public BLEServerCallbacks { 

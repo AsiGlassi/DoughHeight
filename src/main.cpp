@@ -2,19 +2,27 @@
 #include <Wire.h>
 #include <SparkFun_VL6180X.h>
  
+#include "LedDough.h"
 #include "BLEDoughHeight.h"
+#include "DoughServcieStatus.h"
 
-#define VL6180X_ADDRESS 0x29
 
 //Debug
 #define debugMode false
 
 //TOF 
+#define VL6180X_ADDRESS 0x29
 VL6180xIdentification identification;
 VL6180x disSensor(VL6180X_ADDRESS);
 
+//Pixel
+LedDough leds;
+
 //BLE
 BLEDoughHeight xBleDoughHeight;
+
+//Service Status
+DoughServcieStatusEnum DoughServcieStatus = DoughServcieStatusEnum::idle;
 
 //interval
 unsigned long sendInterval = 3000;
@@ -50,6 +58,46 @@ void printIdentification(struct VL6180xIdentification *temp) {
 }
 
 
+
+void StartFermentation() {
+    Serial.println("Start Fermentation Process.");
+    
+    //set status
+    DoughServcieStatus = DoughServcieStatusEnum::Fermenting;
+
+    //Set Light status
+    leds.Fermenting();
+
+    //update BLE device status changed
+    xBleDoughHeight.sendStatustData(DoughServcieStatus);
+}
+
+void StopFermentation() {
+    Serial.println("Stop Fermentation Process.");
+    
+    //set status
+    DoughServcieStatus = DoughServcieStatusEnum::idle;
+    
+    //Set Light status
+    leds.idle();
+
+    //update BLE device status changed
+    xBleDoughHeight.sendStatustData(DoughServcieStatus);
+}
+
+class DoughServiceBLECallback: public DoughServiceBLECallbacks {
+public:    
+    void onStart() {
+      StartFermentation();
+    }
+
+	void onStop() {
+    StopFermentation();
+    }
+};
+
+
+
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(115200);
@@ -58,6 +106,7 @@ void setup() {
   
   pinMode(LED_BUILTIN, OUTPUT);
 
+  //Start TOF Sensor
   Wire.begin();
   disSensor.getIdentification(&identification); // Retrieve manufacture info from device memory
   printIdentification(&identification);      // Helper function to print all the Module information
@@ -70,10 +119,14 @@ void setup() {
 
   disSensor.VL6180xDefautSettings(); // Load default settings to get started.
 
+  //Start Pixel light
+  leds.initLed();
+  
   //init BLE
   xBleDoughHeight.initBLE();
+  xBleDoughHeight.regDoughServiceBLECallback(new DoughServiceBLECallback());
 
-  delay(1000); 
+  delay(1000);
 }
 
 void loop() {
@@ -108,4 +161,7 @@ void loop() {
   }
   delay(500);
 }
+
+
+
 

@@ -92,18 +92,13 @@ void BLEDoughHeight::sendStatustData(DoughServcieStatusEnum status) {
     pStatusCharacteristic->notify();
 }
 
-
 void BLEDoughHeight::StartFermentation() {
-    Serial.println("BLE Start Fermentation Process.");
-    
-    DoughServcieStatus = DoughServcieStatusEnum::Fermenting;
-    sendStatustData(DoughServcieStatus);
+    if (BLEDoughHeightCallback != NULL) {
+        BLEDoughHeightCallback->onStart();
+    }
 }
-
 void BLEDoughHeight::StopFermentation() {
-    Serial.println("BLE Stop Fermentation Process.");
-    
-    DoughServcieStatus = DoughServcieStatusEnum::idle;
-    sendStatustData(DoughServcieStatus);
+    if (BLEDoughHeightCallback != NULL) {
+        BLEDoughHeightCallback->onStop();
+    }
 }
-
