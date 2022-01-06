@@ -1,10 +1,9 @@
+#include <RTClib.h>
 #include <Arduino.h>
 #include <SPI.h>
 #include <Wire.h>
 #include <SparkFun_VL6180X.h>
-//#include <TimeLib.h>
-#include <RTClib.h>
-
+ 
 #include "LedDough.h"
 #include "BLEDoughHeight.h"
 #include "DoughServcieStatus.h"
@@ -14,9 +13,10 @@
 #define debugMode false
 
 //RTC 
+// RTC_DS3231 rtc;
 RTC_DS1307 rtc;
 
-//TOF 
+//TOF - Distance measures
 #define VL6180X_ADDRESS 0x29
 VL6180xIdentification identification;
 VL6180x disSensor(VL6180X_ADDRESS);
@@ -28,7 +28,7 @@ LedDough leds;
 BLEDoughHeight xBleDoughHeight;
 
 //Service Status
-DoughServcieStatus doughServcieStatus;
+DoughServcieStatusEnum DoughServcieStatus = DoughServcieStatusEnum::idle;
 
 //interval
 unsigned long sendInterval = 3000;
@@ -66,35 +66,30 @@ void printIdentification(struct VL6180xIdentification *temp) {
 
 
 void StartFermentation() {
-    
-    DateTime currTime = rtc.now();
-    char strFormat[] = "MM-DD-YYYY hh:mm:ss";
-    Serial.print("Start Fermentation Process.");Serial.println(currTime.toString(strFormat));
+    Serial.println("Start Fermentation Process.");
     
     //set status
-    doughServcieStatus.setDoughServcieStatusEnum(DoughServcieStatusEnum::Fermenting);
-    doughServcieStatus.setFermentationStart(currTime);
+    DoughServcieStatus = DoughServcieStatusEnum::Fermenting;
 
     //Set Light status
     leds.Fermenting();
 
     //update BLE device status changed
-    xBleDoughHeight.sendStatustData(doughServcieStatus.getDoughServcieStatusEnum());
+    xBleDoughHeight.sendStatustData(DoughServcieStatus);
 }
 
 void StopFermentation() {
     Serial.println("Stop Fermentation Process.");
-
+    
     //set status
-    doughServcieStatus.setDoughServcieStatusEnum(DoughServcieStatusEnum::idle);
-
+    DoughServcieStatus = DoughServcieStatusEnum::idle;
+    
     //Set Light status
     leds.idle();
 
     //update BLE device status changed
-    xBleDoughHeight.sendStatustData(doughServcieStatus.getDoughServcieStatusEnum());
+    xBleDoughHeight.sendStatustData(DoughServcieStatus);
 }
-
 
 class DoughServiceBLECallback: public DoughServiceBLECallbacks {
 public:    
@@ -118,18 +113,26 @@ void setup() {
 
   Serial.println("\n\n --- Starting Dough Fermentation Service ---");
 
-  //RTC 
+  // RTC 
   if (!rtc.begin()) {
-    Serial.println("Couldn't find RTC");
+    Serial.println("Couldn't find RTC!");
     Serial.flush();
+    abort();
   }
-   if (! rtc.isrunning()) {
+  if (! rtc.isrunning()) {
     Serial.println("RTC is NOT running!");
-       rtc.adjust(DateTime(__DATE__, __TIME__));
-  } 
+    rtc.adjust(DateTime(__DATE__, __TIME__));
+  }
   DateTime currTime = rtc.now();
-  char strFormat[] = "MM-DD-YYYY hh:mm:ss";
-  Serial.printf(" --- %s --- \n\n", currTime.toString(strFormat));
+  
+  char strFormat[25];
+  String cTimeStr = currTime.timestamp(DateTime::timestampOpt::TIMESTAMP_FULL);
+  snprintf(strFormat, sizeof(strFormat), "%s", cTimeStr.c_str());
+  Serial.printf(" -- %s -- \n\n", strFormat);
+
+  // char strFormat[25];
+  // snprintf(strFormat, sizeof(strFormat), "%4d%02d%02dT%02d:%02d:%02d", currTime.year(), currTime.month(), currTime.day(), currTime.hour(), currTime.minute(), currTime.second());
+  // Serial.printf(" -- %s --\n\n", strFormat);
 
   //Start TOF Sensor
   Wire.begin();
@@ -156,7 +159,6 @@ void setup() {
 
 void loop() {
   
-
   if (xBleDoughHeight.isDeviceConnected()) {
     
     unsigned long now = millis();
