@@ -20,15 +20,18 @@ RTC_DS1307 rtc;
 #define VL6180X_ADDRESS 0x29
 VL6180xIdentification identification;
 VL6180x disSensor(VL6180X_ADDRESS);
+uint8_t currDis = 0;
+int distanseEpsilon = 2;
+int minDoughHeight = 20;
 
 //Pixel
 LedDough leds;
 
-//BLE
-BLEDoughHeight xBleDoughHeight;
-
 //Service Status
-DoughServcieStatusEnum DoughServcieStatus = DoughServcieStatusEnum::idle;
+DoughServcieStatus doughServcieStatus;
+
+//BLE
+BLEDoughHeight xBleDoughHeight(&doughServcieStatus);
 
 //interval
 unsigned long sendInterval = 3000;
@@ -66,40 +69,55 @@ void printIdentification(struct VL6180xIdentification *temp) {
 
 
 void StartFermentation() {
-    Serial.println("Start Fermentation Process.");
     
-    //set status
-    DoughServcieStatus = DoughServcieStatusEnum::Fermenting;
+    if (currDis == 0) {
+      Serial.println("Cant start process, Distance = 0.");
+      doughServcieStatus.setDoughServcieStatusEnum(DoughServcieStatusEnum::Error);
+    } else if (abs(currDis - doughServcieStatus.getCupBaseDist() < minDoughHeight)) {
+      Serial.println("Cant start process, Dough level is too low.");
+      doughServcieStatus.setDoughServcieStatusEnum(DoughServcieStatusEnum::Error);
+    } else {
+      DateTime currTime = rtc.now();
+      char strFormat[] = "MM-DD-YYYY hh:mm:ss";
+      Serial.print("Start Fermentation Process.");Serial.println(currTime.toString(strFormat));
+      
+      //set status
+      doughServcieStatus.setDoughServcieStatusEnum(DoughServcieStatusEnum::Fermenting);
+      doughServcieStatus.setFermentationStart(currTime);
+      doughServcieStatus.setDoughInitDist(currDis);
+      doughServcieStatus.setCupBaseDist(currDis + 10);
 
-    //Set Light status
-    leds.Fermenting();
+      //Set Light status
+      leds.Fermenting();
 
-    //update BLE device status changed
-    xBleDoughHeight.sendStatustData(DoughServcieStatus);
+      //update BLE device status changed
+      xBleDoughHeight.sendStatustData(doughServcieStatus.getDoughServcieStatusEnum());
+    }
 }
 
 void StopFermentation() {
     Serial.println("Stop Fermentation Process.");
-    
+
     //set status
-    DoughServcieStatus = DoughServcieStatusEnum::idle;
-    
+    doughServcieStatus.setDoughServcieStatusEnum(DoughServcieStatusEnum::idle);
+
     //Set Light status
     leds.idle();
 
     //update BLE device status changed
-    xBleDoughHeight.sendStatustData(DoughServcieStatus);
+    xBleDoughHeight.sendStatustData(doughServcieStatus.getDoughServcieStatusEnum());
 }
 
-class DoughServiceBLECallback: public DoughServiceBLECallbacks {
-public:    
-    void onStart() {
-      StartFermentation();
-    }
 
-	void onStop() {
+class DoughServiceBLECallback: public DoughServiceBLECallbacks {
+public:
+  void onStart() {
+    StartFermentation();
+  }
+
+  void onStop() {
     StopFermentation();
-    }
+  }
 };
 
 
@@ -165,7 +183,7 @@ void loop() {
     if ((now - lastSentTime) > sendInterval) {
 
       lastSentTime = now;
-      uint8_t dis = disSensor.getDistance();
+      currDis = disSensor.getDistance();
       if (debugMode) {
         // Get Ambient Light level and report in LUX
         Serial.print("Ambient Light Level (Lux) = ");
@@ -182,9 +200,9 @@ void loop() {
 
         // Get Distance and report in mm
         Serial.print("Distance measured (mm) = ");
-        Serial.println(dis);
+        Serial.println(currDis);
       }
-      xBleDoughHeight.sendHeightData(dis);
+      xBleDoughHeight.sendHeightData(currDis);
     }
   }
   delay(500);
