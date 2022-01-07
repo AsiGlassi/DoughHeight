@@ -42,25 +42,30 @@ class BLEDoughHeight
     BLECharacteristic* pStatusCharacteristic;
     BLEAdvertising *pAdvertising;
 
-    DoughServiceBLECallbacks* BLEDoughHeightCallback = NULL;
+    DoughServiceBLECallbacks* bleDoughHeightCallback = NULL;
+    DoughServcieStatus* bleDoughServcieStatus = NULL;
 
- public:
-   DoughServcieStatusEnum DoughServcieStatus = DoughServcieStatusEnum::idle;
 
  private:   
-    friend class TheServerCallBacks;
+    // friend class TheServerCallBacks;
+    // friend class StatusCharacteristicCallbacks;
 
 public:
+
+    BLEDoughHeight(DoughServcieStatus* dServcieStatus) {bleDoughServcieStatus = dServcieStatus;}
     void initBLE();
 
     void setDeviceConnected(bool conn) {deviceConnected = conn;}
     bool isDeviceConnected();
-    void sendHeightData(int doughHeight);
+
+    DoughServcieStatus getBleDoughServcieStatus() {return *bleDoughServcieStatus;}
+
+    void sendHeightData(uint8_t doughHeight);
     void sendStatustData(DoughServcieStatusEnum status);
 
     void StartFermentation();
     void StopFermentation();
-    void regDoughServiceBLECallback(DoughServiceBLECallbacks* pCallback) {BLEDoughHeightCallback = pCallback;}
+    void regDoughServiceBLECallback(DoughServiceBLECallbacks* pCallback) {bleDoughHeightCallback = pCallback;}
 };
 
 
@@ -124,64 +129,31 @@ class heightCharacteristicCallbacks: public BLECharacteristicCallbacks {
 };
 
 
-class startCharacteristicCallbacks: public BLECharacteristicCallbacks {
+class StartCharacteristicCallbacks: public BLECharacteristicCallbacks {
     
     BLEDoughHeight* pBleDoughHeight;
 
 public:
-    startCharacteristicCallbacks(BLEDoughHeight* pinDoughHeight) {
+    StartCharacteristicCallbacks(BLEDoughHeight* pinDoughHeight) {
         pBleDoughHeight = pinDoughHeight;
     }
 
-    void onWrite(BLECharacteristic *pCharacteristic) {
-      std::string rxValue = pCharacteristic->getValue();
-
-      if (rxValue.length() > 0) {
-        if (rxValue.length() == 1) {
-            if (rxValue[0] == 0x0) {
-                Serial.println("BLE StartStop Charachtiristic received Stop Service Command.");
-                pBleDoughHeight->StopFermentation();
-            } else if (rxValue[0] == 0x1) {
-                Serial.println("BLE StartStop Charachtiristic received Start Service Command.");
-                pBleDoughHeight->StartFermentation();
-            } else {
-                Serial.printf("BLE StartStop Charachtiristic Received Value: %s\n", rxValue.c_str());
-            }
-        }
-      }
-    }
-
-    void onRead(BLECharacteristic *pCharacteristic) {
-        Serial.printf("BLE StartStop Charachtiristic invalid read request.\n");
-    }
+    void onWrite(BLECharacteristic *pCharacteristic);
+    void onRead(BLECharacteristic *pCharacteristic);
 };
 
 
-class statusCharacteristicCallbacks: public BLECharacteristicCallbacks {
+class StatusCharacteristicCallbacks: public BLECharacteristicCallbacks {
 
     BLEDoughHeight* pBleDoughHeight;
 
 public:
-    statusCharacteristicCallbacks(BLEDoughHeight* pinDoughHeight) {
+    StatusCharacteristicCallbacks(BLEDoughHeight* pinDoughHeight) {
         pBleDoughHeight = pinDoughHeight;
     }
 
-    void onWrite(BLECharacteristic *pCharacteristic) {
-      std::string rxValue = pCharacteristic->getValue();
-
-      if (rxValue.length() > 0) {
-        Serial.printf("BLE Status Charachtiristic Received INVALID Value: %s\n", rxValue.c_str());
-      }
-    }
-
-    void onRead(BLECharacteristic *pCharacteristic) {
-        
-        Serial.printf("BLE Status Charachtiristic read status: '%d'.\n", pBleDoughHeight->DoughServcieStatus);
-
-        char statusCTemp[6];
-        sprintf(statusCTemp, "%d", pBleDoughHeight->DoughServcieStatus);
-        pCharacteristic->setValue(statusCTemp);
-    }
+    void onWrite(BLECharacteristic *pCharacteristic);
+    void onRead(BLECharacteristic *pCharacteristic);
 };
 
 #endif
