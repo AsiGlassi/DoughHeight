@@ -17,15 +17,25 @@ class DoughServcieStatus {
 
 private:  
   DoughServcieStatusEnum m_doughServcieStatusEnum = DoughServcieStatusEnum::idle;
+
+  //Stores the time fermentation started.
   DateTime m_startFermentationTime;
+  
+  //he dough initial height, represented by distance. 
   int m_doughInitDist=0;
+
+  //The cup base height, represented by the distance. essential for understand the initiate height of the dough and fermentation calculation..
   int m_cupBaseDist=0;
+
+  //Desired Fermentation Percentage - What is the desired fermentation amount.
+  float m_desiredFermPercentage=0.30;
 
 
 public:
   DoughServcieStatusEnum getDoughServcieStatusEnum() {return m_doughServcieStatusEnum;}
   void setDoughServcieStatusEnum(DoughServcieStatusEnum statusEnum) {m_doughServcieStatusEnum = statusEnum;}
 
+  DateTime getFermentationStart() {return m_startFermentationTime;}
   void setFermentationStart(DateTime regTime) {
     m_doughServcieStatusEnum = DoughServcieStatusEnum::Fermenting;
     m_startFermentationTime = regTime;
@@ -46,5 +56,7 @@ public:
     m_cupBaseDist = capBaseDist;
   }
 
+  float getDesiredFermPercentage() {return m_desiredFermPercentage;}
+  void setDesiredFermPercentage(float desiredPercentage) {m_desiredFermPercentage = desiredPercentage;}
 };
 #endif

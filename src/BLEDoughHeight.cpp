@@ -14,7 +14,7 @@ void BLEDoughHeight::initBLE() {
 										BLECharacteristic::PROPERTY_NOTIFY |
                                         BLECharacteristic::PROPERTY_READ
 									);
-    pHeightCharacteristic->setCallbacks(new heightCharacteristicCallbacks());
+    pHeightCharacteristic->setCallbacks(new heightCharacteristicCB());
 
     BLEDescriptor doughHeightDescriptor(BLEUUID((uint16_t)0x2902));
     doughHeightDescriptor.setValue("Dough Height");
@@ -32,7 +32,7 @@ void BLEDoughHeight::initBLE() {
 										CHARACTERISTIC_START_UUID,
                                         BLECharacteristic::PROPERTY_WRITE
 									);
-    pStartCharacteristic->setCallbacks(new StartCharacteristicCallbacks(this));
+    pStartCharacteristic->setCallbacks(new StartCharacteristicCB(this));
 
     BLEDescriptor startDescriptor(BLEUUID((uint16_t)0x2901));
     startDescriptor.setValue("Start/Stop Service");
@@ -47,7 +47,7 @@ void BLEDoughHeight::initBLE() {
 										BLECharacteristic::PROPERTY_NOTIFY |
                                         BLECharacteristic::PROPERTY_READ
 									);
-    pStatusCharacteristic->setCallbacks(new StatusCharacteristicCallbacks(this));
+    pStatusCharacteristic->setCallbacks(new StatusCharacteristicCB(this));
 
     BLEDescriptor statusDescriptor(BLEUUID((uint16_t)0x2902));
     statusDescriptor.setValue("Service Status");
@@ -58,6 +58,25 @@ void BLEDoughHeight::initBLE() {
     pStatusCharacteristic->addDescriptor(&statusDescriptor);
 
     pStatusCharacteristic->setValue("N/A");
+
+
+    //Desired Fermentation Percentage 
+    pDesiredFermPercentageCharacteristic = pService->createCharacteristic(
+										CHARACTERISTIC_DESIRED_FERMENTATION_UUID,
+                                        BLECharacteristic::PROPERTY_READ |
+                                        BLECharacteristic::PROPERTY_WRITE
+									);
+    pDesiredFermPercentageCharacteristic->setCallbacks(new DesiredFermPercentageCharacteristicCB(this));
+
+    // BLEDescriptor desiredFermDescriptor(BLEUUID((uint16_t)0x2902));
+    // desiredFermDescriptor.setValue("Desired Fermentation Percentage Notification");
+    // pDesiredFermPercentageCharacteristic->addDescriptor(&desiredFermDescriptor);
+
+    BLEDescriptor desiredFermRWDescriptor(BLEUUID((uint16_t)0x2901));//read write
+    desiredFermRWDescriptor.setValue("Desired Fermentation Percentage");
+    pDesiredFermPercentageCharacteristic->addDescriptor(&desiredFermRWDescriptor);
+
+    pDesiredFermPercentageCharacteristic->setValue("N/A");
 
 
 
@@ -104,7 +123,7 @@ void BLEDoughHeight::StopFermentation() {
     }
 }
 
-void StartCharacteristicCallbacks::onWrite(BLECharacteristic *pCharacteristic) {
+void StartCharacteristicCB::onWrite(BLECharacteristic *pCharacteristic) {
     std::string rxValue = pCharacteristic->getValue();
 
     if (rxValue.length() > 0) {
@@ -122,12 +141,12 @@ void StartCharacteristicCallbacks::onWrite(BLECharacteristic *pCharacteristic) {
     }
 }
 
-void StartCharacteristicCallbacks::onRead(BLECharacteristic *pCharacteristic) {
+void StartCharacteristicCB::onRead(BLECharacteristic *pCharacteristic) {
     Serial.printf("BLE StartStop Charachtiristic invalid read request.\n");
 }
 
 
-void StatusCharacteristicCallbacks::onWrite(BLECharacteristic *pCharacteristic) {
+void StatusCharacteristicCB::onWrite(BLECharacteristic *pCharacteristic) {
     std::string rxValue = pCharacteristic->getValue();
 
     if (rxValue.length() > 0) {
@@ -135,11 +154,33 @@ void StatusCharacteristicCallbacks::onWrite(BLECharacteristic *pCharacteristic) 
     }
 }
 
-void StatusCharacteristicCallbacks::onRead(BLECharacteristic *pCharacteristic) {
+void StatusCharacteristicCB::onRead(BLECharacteristic *pCharacteristic) {
     
     Serial.printf("BLE Status Charachtiristic read status: '%d'.\n", pBleDoughHeight->getBleDoughServcieStatus().getDoughServcieStatusEnum());
 
     char statusCTemp[6];
     sprintf(statusCTemp, "%d", pBleDoughHeight->getBleDoughServcieStatus().getDoughServcieStatusEnum());
+    pCharacteristic->setValue(statusCTemp);
+}
+
+
+void DesiredFermPercentageCharacteristicCB::onWrite(BLECharacteristic *pCharacteristic) {
+    std::string rxValue = pCharacteristic->getValue();
+
+    if ((rxValue.length() > 0) && (rxValue.length() < 7)) {
+        float precent  = atof(rxValue.c_str());
+        Serial.printf("BLE Desired Fermentation Percentage Charachtiristic Received Value: %f\n", precent);
+    } else {
+        Serial.printf("BLE Desired Fermentation Percentage Charachtiristic Received INVALID Value: %s\n", rxValue.c_str());
+    }
+}
+
+void DesiredFermPercentageCharacteristicCB::onRead(BLECharacteristic *pCharacteristic) {
+    
+    Serial.printf("BLE Desired Fermentation Percentage  Charachtiristic Read Value: '%f'.\n", 
+        pBleDoughHeight->getBleDoughServcieStatus().getDesiredFermPercentage());
+
+    char statusCTemp[6];
+    sprintf(statusCTemp, "%f", pBleDoughHeight->getBleDoughServcieStatus().getDesiredFermPercentage());
     pCharacteristic->setValue(statusCTemp);
 }
