@@ -19,9 +19,11 @@ typedef void (*BleDoughServiceCallbackFunction)(void);
 
 #define DOUGH_HEIGHT_SERVICE_UUID   "3ee2ffbe-e236-41f2-9c40-d44563ddc614"
 #define CHARACTERISTIC_HEIGHT_UUID  "7daf9c2b-715c-4a1c-b889-1ccd50817186"
+#define CHARACTERISTIC_FERMENTATION_UUID  "8d0ca8ce-5c66-4e31-ba1a-48868601ec25"
 #define CHARACTERISTIC_START_UUID  "fc70539e-2e17-4cf8-b7e2-4375fc7ded5a"
 #define CHARACTERISTIC_STATUS_UUID  "a1990b88-249f-45b2-a0b2-ba0f1f90ca0a"
-#define CHARACTERISTIC_DESIRED_FERMENTATION_UUID  "12b53266-d7e6-482c-ba98-8043bef8b110"
+#define CHARACTERISTIC_DESIRED_FERMENTATION_UUID  "b1f4f8ec-efd5-4fd9-be66-09bbb9baa1da"
+
 
 class DoughServiceBLECallbacks {
 public:
@@ -31,21 +33,22 @@ public:
 };
 
 
-
 class BLEDoughHeight 
 {
-    bool deviceConnected = false;
     BLEServer* pServer;
     BLEService* pService;
     
     BLECharacteristic* pHeightCharacteristic;
+    BLECharacteristic* pFermPercentageCharacteristic;
     BLECharacteristic* pStartCharacteristic;
     BLECharacteristic* pStatusCharacteristic;
-    BLECharacteristic* pDesiredFermPercentageCharacteristic;
+    BLECharacteristic* pDesiredFermPercentCharacteristic;
 
     BLEAdvertising *pAdvertising;
 
     DoughServiceBLECallbacks* bleDoughHeightCallback = NULL;
+
+    bool deviceConnected = false;
     DoughServcieStatus* bleDoughServcieStatus = NULL;
 
 
@@ -63,7 +66,9 @@ public:
 
     DoughServcieStatus getBleDoughServcieStatus() {return *bleDoughServcieStatus;}
 
+    float getDoughFermentationPercent() {return bleDoughServcieStatus->getFermPercentage();}
     void sendHeightData(uint8_t doughHeight);
+    void sendDoughFermPercentData(float doughFermenPercent);
     void sendStatustData(DoughServcieStatusEnum status);
 
     void StartFermentation();
@@ -117,6 +122,7 @@ public:
 class heightCharacteristicCB: public BLECharacteristicCallbacks {
     
     void onWrite(BLECharacteristic *pCharacteristic) {
+
       std::string rxValue = pCharacteristic->getValue();
 
       if (rxValue.length() > 0) {
@@ -130,6 +136,21 @@ class heightCharacteristicCB: public BLECharacteristicCallbacks {
         pCharacteristic->setValue(txValue.c_str());
     }
 };
+
+
+class FermPercentageCharacteristicCB: public BLECharacteristicCallbacks {
+    
+    BLEDoughHeight* pBleDoughHeight;
+
+public:
+    FermPercentageCharacteristicCB(BLEDoughHeight* pinDoughHeight) {
+        pBleDoughHeight = pinDoughHeight;
+    }
+
+    void onWrite(BLECharacteristic *pCharacteristic);
+    void onRead(BLECharacteristic *pCharacteristic);
+};
+
 
 
 class StartCharacteristicCB: public BLECharacteristicCallbacks {

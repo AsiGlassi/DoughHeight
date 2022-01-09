@@ -16,8 +16,6 @@ enum DoughServcieStatusEnum {
 class DoughServcieStatus {
 
 private:  
-  DoughServcieStatusEnum m_doughServcieStatusEnum = DoughServcieStatusEnum::idle;
-
   //Stores the time fermentation started.
   DateTime m_startFermentationTime;
   
@@ -30,6 +28,15 @@ private:
   //Desired Fermentation Percentage - What is the desired fermentation amount.
   float m_desiredFermPercentage=0.30;
 
+  //Service Status
+  DoughServcieStatusEnum m_doughServcieStatusEnum = DoughServcieStatusEnum::idle;
+
+  //Dough Distance (Height)
+  uint8_t m_doughHeight=0;
+
+  //Fermentation Percentage - What is the desired fermentation amount.
+  float m_fermPercentage=0.00;
+
 
 public:
   DoughServcieStatusEnum getDoughServcieStatusEnum() {return m_doughServcieStatusEnum;}
@@ -40,7 +47,6 @@ public:
     m_doughServcieStatusEnum = DoughServcieStatusEnum::Fermenting;
     m_startFermentationTime = regTime;
   }
-
 
   int getDoughInitDist() {
     return m_doughInitDist;
@@ -58,5 +64,16 @@ public:
 
   float getDesiredFermPercentage() {return m_desiredFermPercentage;}
   void setDesiredFermPercentage(float desiredPercentage) {m_desiredFermPercentage = desiredPercentage;}
+
+  uint8_t getDoughHeight() {
+    return m_doughHeight;
+  }
+  void setDoughHeight(uint8_t doughHeight) {
+    m_doughHeight = doughHeight;
+  }
+
+  float getFermPercentage() {return m_fermPercentage;}
+  void setFermPercentage(float fermPercentage) {m_fermPercentage = fermPercentage;}
+
 };
 #endif
