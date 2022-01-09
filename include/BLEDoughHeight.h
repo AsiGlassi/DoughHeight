@@ -87,7 +87,6 @@ public:
         pBleDoughHeight = pinDoughHeight;
     }
 
-
     void onConnect(BLEServer* pServer, esp_ble_gatts_cb_param_t *param) {
 
         Serial.println("Device Connected"); 
@@ -110,7 +109,6 @@ public:
 		ESP_LOGI(LOG_TAG, "myServerCallback onConnect, MAC: %s", remoteAddress);
 	}
 
-
     void onDisconnect (BLEServer* pServer) {
         pBleDoughHeight->setDeviceConnected(false);
         Serial.println("Device Disconnected");
@@ -120,21 +118,16 @@ public:
 
 
 class heightCharacteristicCB: public BLECharacteristicCallbacks {
-    
-    void onWrite(BLECharacteristic *pCharacteristic) {
 
-      std::string rxValue = pCharacteristic->getValue();
+    BLEDoughHeight* pBleDoughHeight;
 
-      if (rxValue.length() > 0) {
-        Serial.printf("BLE Received Value: %s\n", rxValue.c_str());
-
-      }
+public:
+    heightCharacteristicCB(BLEDoughHeight* pinDoughHeight) {
+        pBleDoughHeight = pinDoughHeight;
     }
 
-    void onRead(BLECharacteristic *pCharacteristic) {
-        std::string txValue = std::string("N/A");
-        pCharacteristic->setValue(txValue.c_str());
-    }
+    void onWrite(BLECharacteristic *pCharacteristic);
+    void onRead(BLECharacteristic *pCharacteristic);
 };
 
 

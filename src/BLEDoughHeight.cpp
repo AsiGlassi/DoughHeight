@@ -16,12 +16,11 @@ void BLEDoughHeight::initBLE() {
 										BLECharacteristic::PROPERTY_NOTIFY |
                                         BLECharacteristic::PROPERTY_READ
 									);
-    pHeightCharacteristic->setCallbacks(new heightCharacteristicCB());
+    pHeightCharacteristic->setCallbacks(new heightCharacteristicCB(this));
 
-    // BLEDescriptor doughHeightDescriptor(BLE2902());
-    // doughHeightDescriptor.setValue("Dough Height");
-    // pHeightCharacteristic->addDescriptor(&doughHeightDescriptor);
-    pHeightCharacteristic->addDescriptor(new BLE2902());
+    BLE2902* doughHeightDescriptor = new BLE2902();
+    doughHeightDescriptor->setNotifications(true);
+    pHeightCharacteristic->addDescriptor(doughHeightDescriptor);
 
     BLEDescriptor heightRWDescriptor(BLEUUID((uint16_t)0x2901));//read write
     heightRWDescriptor.setValue("Dough Height in mm");
@@ -38,10 +37,9 @@ void BLEDoughHeight::initBLE() {
 									);
     pFermPercentageCharacteristic->setCallbacks(new FermPercentageCharacteristicCB(this));
 
-    // BLEDescriptor fermDescriptor(BLE2902());
-    // fermDescriptor.setValue("Fermentation Percentage Notification");
-    // pFermPercentageCharacteristic->addDescriptor(&fermDescriptor);
-    pFermPercentageCharacteristic->addDescriptor(new BLE2902());
+    BLE2902* fermDescriptor= new BLE2902();
+    fermDescriptor->setNotifications(true);
+    pFermPercentageCharacteristic->addDescriptor(fermDescriptor);
 
     BLEDescriptor fermRWDescriptor(BLEUUID((uint16_t)0x2901));//read write
     fermRWDescriptor.setValue("Fermentation Percentage");
@@ -71,11 +69,10 @@ void BLEDoughHeight::initBLE() {
                                 BLECharacteristic::PROPERTY_NOTIFY
                             );
     pStatusCharacteristic->setCallbacks(new StatusCharacteristicCB(this));
-    
-    // BLEDescriptor statusDescriptor(BLE2902());
-    // BLEDescriptor statusDescriptor(BLEUUID((uint16_t)0x2902));
-    // statusDescriptor.setValue("Service Status");
-    pStatusCharacteristic->addDescriptor(new BLE2902());
+        
+    BLE2902* statusDescriptor= new BLE2902();
+    statusDescriptor->setNotifications(true);
+    pStatusCharacteristic->addDescriptor(statusDescriptor);
 
     BLEDescriptor statusRWDescriptor(BLEUUID((uint16_t)0x2901));//read write
     statusRWDescriptor.setValue("Service Status");
@@ -150,6 +147,22 @@ void BLEDoughHeight::StopFermentation() {
     if (bleDoughHeightCallback != NULL) {
         bleDoughHeightCallback->onStop();
     }
+}
+
+
+
+void heightCharacteristicCB::onWrite(BLECharacteristic *pCharacteristic) {
+
+    std::string rxValue = pCharacteristic->getValue();
+
+    if (rxValue.length() > 0) {
+        Serial.printf("BLE Received Value: %s\n", rxValue.c_str());
+    }
+}
+
+void heightCharacteristicCB::onRead(BLECharacteristic *pCharacteristic) {
+    std::string txValue = std::string("N/A");
+    pCharacteristic->setValue(txValue.c_str());
 }
 
 
