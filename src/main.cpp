@@ -20,7 +20,8 @@ RTC_DS1307 rtc;
 #define VL6180X_ADDRESS 0x29
 VL6180xIdentification identification;
 VL6180x disSensor(VL6180X_ADDRESS);
-uint8_t currDis = 0;
+uint8_t currDoughDist = 0;
+uint8_t currDoughFermPercent = 0;
 int distanseEpsilon = 2;
 int minDoughHeight = 20;
 
@@ -70,22 +71,22 @@ void printIdentification(struct VL6180xIdentification *temp) {
 
 void StartFermentation() {
     
-    if (currDis == 0) {
+    if (currDoughDist == 0) {
       Serial.println("Cant start process, Distance = 0.");
       doughServcieStatus.setDoughServcieStatusEnum(DoughServcieStatusEnum::Error);
-    } else if (abs(currDis - doughServcieStatus.getCupBaseDist() < minDoughHeight)) {
+    } else if (abs(currDoughDist - doughServcieStatus.getCupBaseDist() < minDoughHeight)) {
       Serial.println("Cant start process, Dough level is too low.");
       doughServcieStatus.setDoughServcieStatusEnum(DoughServcieStatusEnum::Error);
     } else {
       DateTime currTime = rtc.now();
       char strFormat[] = "MM-DD-YYYY hh:mm:ss";
-      Serial.print("Start Fermentation Process.");Serial.println(currTime.toString(strFormat));
+      Serial.print("Start Fermentation Process: ");Serial.println(currTime.toString(strFormat));
       
       //set status
       doughServcieStatus.setDoughServcieStatusEnum(DoughServcieStatusEnum::Fermenting);
       doughServcieStatus.setFermentationStart(currTime);
-      doughServcieStatus.setDoughInitDist(currDis);
-      doughServcieStatus.setCupBaseDist(currDis + 10);
+      doughServcieStatus.setDoughInitDist(currDoughDist);
+      doughServcieStatus.setCupBaseDist(currDoughDist + 10);
 
       //Set Light status
       leds.Fermenting();
@@ -183,7 +184,7 @@ void loop() {
     if ((now - lastSentTime) > sendInterval) {
 
       lastSentTime = now;
-      currDis = disSensor.getDistance();
+      currDoughDist = disSensor.getDistance();
       if (debugMode) {
         // Get Ambient Light level and report in LUX
         Serial.print("Ambient Light Level (Lux) = ");
@@ -200,9 +201,12 @@ void loop() {
 
         // Get Distance and report in mm
         Serial.print("Distance measured (mm) = ");
-        Serial.println(currDis);
+        Serial.println(currDoughDist);
       }
-      xBleDoughHeight.sendHeightData(currDis);
+
+      //broadcast height
+      xBleDoughHeight.sendHeightData(currDoughDist);
+      xBleDoughHeight.sendDoughFermPercentData(3.3);
     }
   }
   delay(500);
