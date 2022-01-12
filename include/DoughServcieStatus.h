@@ -26,7 +26,10 @@ private:
   int m_cupBaseDist=0;
 
   //Desired Fermentation Percentage - What is the desired fermentation amount.
-  float m_desiredFermPercentage=0.30;
+  float m_desiredFermPercentage=0.40;
+
+  //Fermentation Percentage above the desired fermentation percentage, will be recognized as Over Fermentation Percentage
+  float m_overFermPercentage = 0.05;
 
   //Service Status
   DoughServcieStatusEnum m_doughServcieStatusEnum = DoughServcieStatusEnum::idle;
@@ -64,6 +67,9 @@ public:
 
   float getDesiredFermPercentage() {return m_desiredFermPercentage;}
   void setDesiredFermPercentage(float desiredPercentage) {m_desiredFermPercentage = desiredPercentage;}
+
+  float getOverFermPercentage() {return m_overFermPercentage;}
+  void setOverFermPercentage(float overFermPercentage) {m_overFermPercentage = overFermPercentage;}
 
   uint8_t getDoughHeight() {
     return m_doughHeight;

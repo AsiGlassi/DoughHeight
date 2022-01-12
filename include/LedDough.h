@@ -26,7 +26,11 @@ public:
 
     void Fermenting();
 
+    void ReachedDesiredFerm();
+
     void OverFermentation();
+
+    void Error();
 
 };
 #endif
