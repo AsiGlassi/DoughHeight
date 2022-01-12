@@ -74,19 +74,21 @@ void StartFermentation() {
     if (currDoughDist == 0) {
       Serial.println("Cant start process, Distance = 0.");
       doughServcieStatus.setDoughServcieStatusEnum(DoughServcieStatusEnum::Error);
-    } else if (abs(currDoughDist - doughServcieStatus.getCupBaseDist() < minDoughHeight)) {
+    } else if (abs(currDoughDist - doughServcieStatus.getCupBaseDist()) < minDoughHeight) {
       Serial.println("Cant start process, Dough level is too low.");
       doughServcieStatus.setDoughServcieStatusEnum(DoughServcieStatusEnum::Error);
     } else {
       DateTime currTime = rtc.now();
       char strFormat[] = "MM-DD-YYYY hh:mm:ss";
-      Serial.print("Start Fermentation Process: ");Serial.println(currTime.toString(strFormat));
+      Serial.print("Start Fermentation Process: ");Serial.print(currTime.toString(strFormat));
+      Serial.print("\tInitialize Dough Distance: "); Serial.println(currDoughDist);
       
+      //set init distance 
+      doughServcieStatus.setDoughInitDist(currDoughDist);
+
       //set status
       doughServcieStatus.setDoughServcieStatusEnum(DoughServcieStatusEnum::Fermenting);
       doughServcieStatus.setFermentationStart(currTime);
-      doughServcieStatus.setDoughInitDist(currDoughDist);
-      doughServcieStatus.setCupBaseDist(currDoughDist + 10);
 
       //Set Light status
       leds.Fermenting();
@@ -94,6 +96,19 @@ void StartFermentation() {
       //update BLE device status changed
       xBleDoughHeight.sendStatustData(doughServcieStatus.getDoughServcieStatusEnum());
     }
+}
+
+void ContFermenting() {
+      Serial.println("Continue Fermentation Process.");
+
+      //set status
+      doughServcieStatus.setDoughServcieStatusEnum(DoughServcieStatusEnum::Fermenting);
+
+      //Set Light status
+      leds.Fermenting();
+
+      //update BLE device status changed
+      xBleDoughHeight.sendStatustData(doughServcieStatus.getDoughServcieStatusEnum());
 }
 
 void StopFermentation() {
@@ -104,6 +119,32 @@ void StopFermentation() {
 
     //Set Light status
     leds.idle();
+
+    //update BLE device status changed
+    xBleDoughHeight.sendStatustData(doughServcieStatus.getDoughServcieStatusEnum());
+}
+
+void ReachedDesiredFermentation() {
+     Serial.println("Reached Desired Fermentation.");
+
+    //set status
+    doughServcieStatus.setDoughServcieStatusEnum(DoughServcieStatusEnum::ReachedDesiredFerm);
+
+    //Set Light status
+    leds.ReachedDesiredFerm();
+
+    //update BLE device status changed
+    xBleDoughHeight.sendStatustData(doughServcieStatus.getDoughServcieStatusEnum());
+}
+
+void OverFermentation() {
+     Serial.println("Dough Over Fermentating.");
+
+    //set status
+    doughServcieStatus.setDoughServcieStatusEnum(DoughServcieStatusEnum::OverFerm);
+
+    //Set Light status
+    leds.OverFermentation();
 
     //update BLE device status changed
     xBleDoughHeight.sendStatustData(doughServcieStatus.getDoughServcieStatusEnum());
@@ -126,6 +167,10 @@ public:
 void setup() {
 
   pinMode(LED_BUILTIN, OUTPUT);
+
+  //initiate value
+  doughServcieStatus.setCupBaseDist(140);
+
 
   // put your setup code here, to run once:
   Serial.begin(115200);
@@ -184,7 +229,10 @@ void loop() {
     if ((now - lastSentTime) > sendInterval) {
 
       lastSentTime = now;
+      // Get Distance and report in mm
       currDoughDist = disSensor.getDistance();
+      Serial.printf("Distance measured = %2d mm.\n", currDoughDist);
+
       if (debugMode) {
         // Get Ambient Light level and report in LUX
         Serial.print("Ambient Light Level (Lux) = ");
@@ -199,14 +247,33 @@ void loop() {
         //  GAIN_40     // Actual ALS Gain of 40
         Serial.println(disSensor.getAmbientLight(GAIN_1));
 
-        // Get Distance and report in mm
-        Serial.print("Distance measured (mm) = ");
-        Serial.println(currDoughDist);
       }
+      if ((doughServcieStatus.getDoughServcieStatusEnum() == DoughServcieStatusEnum::Fermenting) ||
+        (doughServcieStatus.getDoughServcieStatusEnum() == DoughServcieStatusEnum::ReachedDesiredFerm)|| 
+        (doughServcieStatus.getDoughServcieStatusEnum() == DoughServcieStatusEnum::OverFerm)) {
 
-      //broadcast height
-      xBleDoughHeight.sendHeightData(currDoughDist);
-      xBleDoughHeight.sendDoughFermPercentData(3.3);
+        //broadcast heightv & Percentage
+        int initDist = doughServcieStatus.getDoughInitDist();
+        int baseDist = doughServcieStatus.getCupBaseDist();
+        
+        float fermPercent = (initDist - currDoughDist)/(float)(baseDist - initDist);
+        Serial.printf("Dough Fermentation BaseDist:%d InitDist:%d currDist:%d = %f2%%\n", baseDist, initDist, currDoughDist, fermPercent);
+
+        doughServcieStatus.setDoughHeight(currDoughDist);
+        xBleDoughHeight.sendHeightData(currDoughDist);
+        doughServcieStatus.setFermPercentage(fermPercent);
+        xBleDoughHeight.sendDoughFermPercentData(fermPercent);
+
+        //check if reached desired fermentation status
+        float desiredPercentage = doughServcieStatus.getDesiredFermPercentage();
+        if (fermPercent > (desiredPercentage + doughServcieStatus.getOverFermPercentage())) {
+          OverFermentation();
+        } else if (fermPercent > desiredPercentage) {
+          ReachedDesiredFermentation();
+        } else {
+          ContFermenting();
+        }
+      }
     }
   }
   delay(500);
