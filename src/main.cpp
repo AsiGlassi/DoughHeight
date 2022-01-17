@@ -12,6 +12,8 @@
 //Debug
 #define debugMode false
 
+#define BUZZ_PIN 14
+
 //RTC 
 // RTC_DS3231 rtc;
 RTC_DS1307 rtc;
@@ -135,6 +137,11 @@ void ReachedDesiredFermentation() {
 
     //update BLE device status changed
     xBleDoughHeight.sendStatustData(doughServcieStatus.getDoughServcieStatusEnum());
+
+    //Make some sounds for
+    digitalWrite(BUZZ_PIN, HIGH);
+    delay(1250);
+    digitalWrite(BUZZ_PIN, LOW);
 }
 
 void OverFermentation() {
@@ -162,15 +169,16 @@ public:
   }
 };
 
-
+int floorDist=0;
 
 void setup() {
 
   pinMode(LED_BUILTIN, OUTPUT);
+  pinMode(BUZZ_PIN, OUTPUT);
 
   //initiate value
-  doughServcieStatus.setCupBaseDist(140);
-
+  doughServcieStatus.setCupBaseDist(135);
+  floorDist = 150;
 
   // put your setup code here, to run once:
   Serial.begin(115200);
@@ -218,7 +226,7 @@ void setup() {
   xBleDoughHeight.initBLE();
   xBleDoughHeight.regDoughServiceBLECallback(new DoughServiceBLECallback());
 
-  delay(1000);
+  delay(750);
 }
 
 void loop() {
@@ -231,7 +239,7 @@ void loop() {
       lastSentTime = now;
       // Get Distance and report in mm
       currDoughDist = disSensor.getDistance();
-      Serial.printf("Distance measured = %2d mm.\n", currDoughDist);
+      Serial.printf("Distance measured = %2d mm.\t Height = %2d\n", currDoughDist, floorDist - currDoughDist);
 
       if (debugMode) {
         // Get Ambient Light level and report in LUX
@@ -257,7 +265,9 @@ void loop() {
         int baseDist = doughServcieStatus.getCupBaseDist();
         
         float fermPercent = (initDist - currDoughDist)/(float)(baseDist - initDist);
-        Serial.printf("Dough Fermentation BaseDist:%d InitDist:%d currDist:%d = %f2%%\n", baseDist, initDist, currDoughDist, fermPercent);
+        // Serial.printf("Dough Fermentation BaseDist:%d InitDist:%d currDist:%d = %f2%%\n", baseDist, initDist, currDoughDist, fermPercent*100);
+        Serial.printf("Dough Fermentation Base Height:%d Init Dough Height:%d Current Height:%d = %f2%%\n", 
+                      floorDist - baseDist, baseDist - initDist, initDist - currDoughDist, fermPercent*100);
 
         doughServcieStatus.setDoughHeight(currDoughDist);
         xBleDoughHeight.sendHeightData(currDoughDist);

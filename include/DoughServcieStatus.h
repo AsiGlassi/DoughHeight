@@ -29,7 +29,7 @@ private:
   float m_desiredFermPercentage=0.40;
 
   //Fermentation Percentage above the desired fermentation percentage, will be recognized as Over Fermentation Percentage
-  float m_overFermPercentage = 0.05;
+  float m_overFermPercentage = 0.07;
 
   //Service Status
   DoughServcieStatusEnum m_doughServcieStatusEnum = DoughServcieStatusEnum::idle;
