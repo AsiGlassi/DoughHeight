@@ -40,9 +40,6 @@ BLEDoughHeight xBleDoughHeight(&doughServcieStatus);
 unsigned long sendInterval = 3000;
 unsigned long lastSentTime = 0;
 
-//Task Parameters
-bool taskFinished = false;
-TaskHandle_t BlinkLedTaskHandle;
 
 void printIdentification(struct VL6180xIdentification *temp) {
   Serial.print("Model ID = ");
@@ -162,28 +159,6 @@ void OverFermentation() {
 }
 
 
-void LedBlinkingTask( void * pvParameters ) {
-  
-    String taskMessage = "Task running on core ";
-    taskMessage = taskMessage + xPortGetCoreID();
-    Serial.println(taskMessage);  //log para o serial monitor
-
-    int blinked=0;
-  
-    while(true){
-      digitalWrite(33, !digitalRead(33));
-      if (++blinked % 2 == 0 )
-        blinked++;
- 
-    if (taskFinished) {
-      delay(50); //Wait a little before killing task
-      vTaskDelete(NULL);
-    }
-      delay(500);
-    } 
-}
-
-
 
 class DoughServiceBLECallback: public DoughServiceBLECallbacks {
 public:
@@ -255,15 +230,6 @@ void setup() {
   xBleDoughHeight.regDoughServiceBLECallback(new DoughServiceBLECallback());
 
 
-  //Blinking Task
-  xTaskCreatePinnedToCore(LedBlinkingTask, /* Function to implement the task */
-                          "Blinking", /* Name of the task */
-                          10000,  /* Stack size in words */
-                          NULL,  /* Task input parameter */
-                          0,  /* Priority of the task */
-                          &BlinkLedTaskHandle,  /* Task handle. */
-                          0); /* Core where the task should run */
-
   delay(750);
 }
 
@@ -278,7 +244,6 @@ void loop() {
       // Get Distance and report in mm
       currDoughDist = disSensor.getDistance();
       Serial.printf("Distance measured = %2d mm.\t Height = %2d\n", currDoughDist, floorDist - currDoughDist);
-if (floorDist - currDoughDist > 100) {taskFinished = true;}
 
       if (debugMode) {
         // Get Ambient Light level and report in LUX

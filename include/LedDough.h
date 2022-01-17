@@ -15,6 +15,13 @@ class LedDough {
     //Pixel
     Adafruit_NeoPixel strip = Adafruit_NeoPixel(NUMPIXELS, PIXELDATAPIN, NEO_GRB + NEO_KHZ800);
 
+    //Task Parameters
+    TaskHandle_t BlinkLedTaskHandle;
+    volatile bool taskFinished = true;
+
+private:
+    static void LedBlinkingTask(void *pvParameters);
+
 public:
     void initLed();
 
