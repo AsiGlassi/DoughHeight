@@ -50,11 +50,7 @@ class BLEDoughHeight
 
     bool deviceConnected = false;
     DoughServcieStatus* bleDoughServcieStatus = NULL;
-
-
- private:   
-    // friend class TheServerCallBacks;
-    // friend class StatusCharacteristicCB;
+   
 
 public:
 
@@ -143,7 +139,6 @@ public:
     void onWrite(BLECharacteristic *pCharacteristic);
     void onRead(BLECharacteristic *pCharacteristic);
 };
-
 
 
 class StartCharacteristicCB: public BLECharacteristicCallbacks {

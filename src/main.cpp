@@ -40,6 +40,7 @@ BLEDoughHeight xBleDoughHeight(&doughServcieStatus);
 unsigned long sendInterval = 3000;
 unsigned long lastSentTime = 0;
 
+
 void printIdentification(struct VL6180xIdentification *temp) {
   Serial.print("Model ID = ");
   Serial.println(temp->idModel);
@@ -158,6 +159,7 @@ void OverFermentation() {
 }
 
 
+
 class DoughServiceBLECallback: public DoughServiceBLECallbacks {
 public:
   void onStart() {
@@ -174,6 +176,7 @@ int floorDist=0;
 void setup() {
 
   pinMode(LED_BUILTIN, OUTPUT);
+  pinMode(33, OUTPUT);
   pinMode(BUZZ_PIN, OUTPUT);
 
   //initiate value
@@ -225,6 +228,7 @@ void setup() {
   //init BLE
   xBleDoughHeight.initBLE();
   xBleDoughHeight.regDoughServiceBLECallback(new DoughServiceBLECallback());
+
 
   delay(750);
 }
