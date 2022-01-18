@@ -113,7 +113,9 @@ bool BLEDoughHeight::isDeviceConnected() {
 }
 
 void BLEDoughHeight::sendHeightData(uint8_t doughHeight) {
+#ifdef DEBUG_BLE
     Serial.printf("BLE Push dought height '%d'\n", doughHeight);
+#endif
     static char doughHeightCTemp[6];
     dtostrf(doughHeight, 6, 0, doughHeightCTemp);
     pHeightCharacteristic->setValue(doughHeightCTemp);
@@ -121,8 +123,9 @@ void BLEDoughHeight::sendHeightData(uint8_t doughHeight) {
 }
 
 void BLEDoughHeight::sendDoughFermPercentData(float doughFermenPercent) {
-
+#ifdef DEBUG_BLE
     Serial.printf("BLE Push dought Fermentation Percentage '%f'\n", doughFermenPercent);
+#endif
     static char FermPercentageCTemp[10];
     snprintf(FermPercentageCTemp, sizeof(FermPercentageCTemp), "%f", doughFermenPercent);
     pFermPercentageCharacteristic->setValue(FermPercentageCTemp);
@@ -130,7 +133,9 @@ void BLEDoughHeight::sendDoughFermPercentData(float doughFermenPercent) {
 }
 
 void BLEDoughHeight::sendStatustData(DoughServcieStatusEnum status) {
+#ifdef DEBUG_BLE
     Serial.printf("BLE Push Service Status '%d'\n", status);
+#endif
     static char statusCTemp[6];
     dtostrf(status, 1, 0, statusCTemp);
     pStatusCharacteristic->setValue(statusCTemp);
@@ -177,8 +182,9 @@ void FermPercentageCharacteristicCB::onWrite(BLECharacteristic *pCharacteristic)
 void FermPercentageCharacteristicCB::onRead(BLECharacteristic *pCharacteristic) {
     
     float percnt = pBleDoughHeight->getDoughFermentationPercent();
+#ifdef DEBUG_BLE
     Serial.printf("BLE Fermentation Percentage Charachtiristic Read Value: '%f'.\n", percnt);
-
+#endif
     char statusCTemp[10];
     snprintf(statusCTemp, sizeof(statusCTemp), "%f", percnt);
     pCharacteristic->setValue(statusCTemp);
@@ -204,7 +210,7 @@ void StartCharacteristicCB::onWrite(BLECharacteristic *pCharacteristic) {
 }
 
 void StartCharacteristicCB::onRead(BLECharacteristic *pCharacteristic) {
-    Serial.printf("BLE StartStop Charachtiristic invalid read request.\n");
+    Serial.printf("BLE StartStop Charachtiristic INVALID read request.\n");
 }
 
 
@@ -217,9 +223,9 @@ void StatusCharacteristicCB::onWrite(BLECharacteristic *pCharacteristic) {
 }
 
 void StatusCharacteristicCB::onRead(BLECharacteristic *pCharacteristic) {
-    
+#ifdef DEBUG_BLE
     Serial.printf("BLE Status Charachtiristic read status: '%d'.\n", pBleDoughHeight->getBleDoughServcieStatus().getDoughServcieStatusEnum());
-
+#endif
     char statusCTemp[6];
     sprintf(statusCTemp, "%d", pBleDoughHeight->getBleDoughServcieStatus().getDoughServcieStatusEnum());
     pCharacteristic->setValue(statusCTemp);
@@ -232,7 +238,9 @@ void DesiredFermPercentageCharacteristicCB::onWrite(BLECharacteristic *pCharacte
     if ((rxValue.length() > 0) && (rxValue.length() < 7)) {
         float precent  = atof(rxValue.c_str());
         pBleDoughHeight->getBleDoughServcieStatus().setDesiredFermPercentage(precent);
+#ifdef DEBUG_BLE
         Serial.printf("BLE Desired Fermentation Percentage Charachtiristic Received Value: %f\n", precent);
+#endif
     } else {
         Serial.printf("BLE Desired Fermentation Percentage Charachtiristic Received INVALID Value: %s\n", rxValue.c_str());
     }
@@ -241,9 +249,10 @@ void DesiredFermPercentageCharacteristicCB::onWrite(BLECharacteristic *pCharacte
 
 void DesiredFermPercentageCharacteristicCB::onRead(BLECharacteristic *pCharacteristic) {
     
+#ifdef DEBUG_BLE
     Serial.printf("BLE Desired Fermentation Percentage  Charachtiristic Read Value: '%f'.\n", 
         pBleDoughHeight->getBleDoughServcieStatus().getDesiredFermPercentage());
-
+#endif
     char statusCTemp[6];
     sprintf(statusCTemp, "%f", pBleDoughHeight->getBleDoughServcieStatus().getDesiredFermPercentage());
     pCharacteristic->setValue(statusCTemp);

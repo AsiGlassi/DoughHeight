@@ -10,7 +10,7 @@
 
 
 //Debug
-#define debugMode false
+// #define DEBUG_MAIN true
 
 #define BUZZ_PIN 14
 
@@ -102,7 +102,7 @@ void StartFermentation() {
 }
 
 void ContFermenting() {
-      Serial.println("Continue Fermentation Process.");
+      // Serial.println("Continue Fermentation Process.");
 
       //set status
       doughServcieStatus.setDoughServcieStatusEnum(DoughServcieStatusEnum::Fermenting);
@@ -243,9 +243,8 @@ void loop() {
       lastSentTime = now;
       // Get Distance and report in mm
       currDoughDist = disSensor.getDistance();
-      Serial.printf("Distance measured = %2d mm.\t Height = %2d\n", currDoughDist, floorDist - currDoughDist);
 
-      if (debugMode) {
+#ifdef DEBUG_MAIN
         // Get Ambient Light level and report in LUX
         Serial.print("Ambient Light Level (Lux) = ");
         // Input GAIN for light levels,
@@ -258,8 +257,8 @@ void loop() {
         //  GAIN_1      // Actual ALS Gain of 1.01
         //  GAIN_40     // Actual ALS Gain of 40
         Serial.println(disSensor.getAmbientLight(GAIN_1));
-
-      }
+#endif
+      
       if ((doughServcieStatus.getDoughServcieStatusEnum() == DoughServcieStatusEnum::Fermenting) ||
         (doughServcieStatus.getDoughServcieStatusEnum() == DoughServcieStatusEnum::ReachedDesiredFerm)|| 
         (doughServcieStatus.getDoughServcieStatusEnum() == DoughServcieStatusEnum::OverFerm)) {
@@ -287,6 +286,8 @@ void loop() {
         } else {
           ContFermenting();
         }
+      } else {
+        Serial.printf("Distance measured = %2d mm.\t Height = %2d\n", currDoughDist, floorDist - currDoughDist);
       }
     }
   }
