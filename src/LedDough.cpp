@@ -49,13 +49,13 @@ void LedDough::StartFadeLedTask(uint32_t color) {
 
     //Blinking Task
     if (!FadeLedTaskRunning) {//(String)eTaskGetState(&BlinkLedTaskHandle)
-        xTaskCreatePinnedToCore(this->LedBlinkingTask, /* Function to implement the task */
+        xTaskCreate(this->LedBlinkingTask, /* Function to implement the task */
                           "FadeLedTask", /* Name of the task */
                           1024,  /* Stack size in words */
                           this,  /* Task input parameter */
                           0,  /* Priority of the task */
-                          &BlinkLedTaskHandle,  /* Task handle. */
-                          0); /* Core where the task should run */
+                          &BlinkLedTaskHandle  /* Task handle. */
+                          ); 
     }
 }
 
