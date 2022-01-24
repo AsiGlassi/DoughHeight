@@ -16,7 +16,8 @@ CyrcularAvg::CyrcularAvg(byte len) {
 
 void CyrcularAvg::Insert(int value) {
 
-Serial.printf("--> %d\n", value);
+    // Serial.printf("--> %d\n", value);
+    
     //get next item pointer
     NextPointer();
 

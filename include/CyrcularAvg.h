@@ -18,9 +18,10 @@ private:
 public:
     CyrcularAvg(byte len);
  
-  float Avg();
-  void Insert(int value); 
-  void printDebug();
+    float Avg();
+    void Insert(int value); 
+    void printDebug();
+    bool BufferFull() {return numOfItems >= arrayLen;}
   
 };
 #endif
