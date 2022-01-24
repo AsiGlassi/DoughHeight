@@ -4,6 +4,7 @@
 #include <Wire.h>
 #include <SparkFun_VL6180X.h>
  
+#include "CyrcularAvg.h"
 #include "LedDough.h"
 #include "BLEDoughHeight.h"
 #include "DoughServcieStatus.h"
@@ -23,6 +24,7 @@ RTC_DS1307 rtc;
 VL6180xIdentification identification;
 VL6180x disSensor(VL6180X_ADDRESS);
 uint8_t currDoughDist = 0;
+CyrcularAvg avgDistance(10);
 uint8_t currDoughFermPercent = 0;
 int distanseEpsilon = 2;
 int minDoughHeight = 20;
@@ -180,8 +182,8 @@ void setup() {
   pinMode(BUZZ_PIN, OUTPUT);
 
   //initiate value
-  doughServcieStatus.setCupBaseDist(135);
-  floorDist = 150;
+  floorDist = 255;
+  doughServcieStatus.setCupBaseDist(floorDist-15);
 
   // put your setup code here, to run once:
   Serial.begin(115200);
@@ -242,7 +244,9 @@ void loop() {
 
       lastSentTime = now;
       // Get Distance and report in mm
-      currDoughDist = disSensor.getDistance();
+      uint8_t tmpDist = disSensor.getDistance();
+      avgDistance.Insert(tmpDist);
+      currDoughDist = (uint8_t)avgDistance.Avg();
 
 #ifdef DEBUG_MAIN
         // Get Ambient Light level and report in LUX
@@ -269,7 +273,7 @@ void loop() {
         
         float fermPercent = (initDist - currDoughDist)/(float)(baseDist - initDist);
         // Serial.printf("Dough Fermentation BaseDist:%d InitDist:%d currDist:%d = %f2%%\n", baseDist, initDist, currDoughDist, fermPercent*100);
-        Serial.printf("Dough Fermentation Base Height:%d Init Dough Height:%d Current Height:%d = %f2%%\n", 
+        Serial.printf("Dough Fermentation Base Height:%d Init Dough Height:%d Current Ferm Height:%d = %2f%%\n", 
                       floorDist - baseDist, baseDist - initDist, initDist - currDoughDist, fermPercent*100);
 
         doughServcieStatus.setDoughHeight(currDoughDist);
@@ -287,7 +291,8 @@ void loop() {
           ContFermenting();
         }
       } else {
-        Serial.printf("Distance measured = %2d mm.\t Height = %2d\n", currDoughDist, floorDist - currDoughDist);
+        Serial.printf("Distance measured = %2d (%d) mm.\t Height = %2d\n", currDoughDist, tmpDist, floorDist - currDoughDist);
+        // avgDistance.printDebug();
       }
     }
   }
