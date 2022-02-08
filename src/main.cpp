@@ -3,6 +3,8 @@
 #include <SPI.h>
 #include <Wire.h>
 #include <SparkFun_VL6180X.h>
+#include <ArduinoJson.h>
+#include <SPIFFS.h>
  
 #include "CyrcularAvg.h"
 #include "LedDough.h"
@@ -23,6 +25,8 @@ RTC_DS1307 rtc;
 #define VL6180X_ADDRESS 0x29
 VL6180xIdentification identification;
 VL6180x disSensor(VL6180X_ADDRESS);
+
+//Dough config
 uint8_t currDoughDist = 0;
 CyrcularAvg avgDistance(10);
 uint8_t currDoughFermPercent = 0;
@@ -38,9 +42,13 @@ DoughServcieStatus doughServcieStatus;
 //BLE
 BLEDoughHeight xBleDoughHeight(&doughServcieStatus);
 
+// Service Status files
+const char *lastSettingsFileName = "/LastSettings.json";
+
 //interval
 unsigned long sendInterval = 3000;
 unsigned long lastSentTime = 0;
+unsigned int fermentationAgingSpan = 8*60;//in minutes 
 
 
 void printIdentification(struct VL6180xIdentification *temp) {
@@ -73,6 +81,97 @@ void printIdentification(struct VL6180xIdentification *temp) {
 }
 
 
+// Saves Dough Service Startus to a file
+void saveStatus() {
+
+  if (SPIFFS.exists(lastSettingsFileName)) {
+    //File Exist
+    SPIFFS.remove(lastSettingsFileName);
+  }
+
+  // Open file for writing
+  File file = SPIFFS.open(lastSettingsFileName, FILE_WRITE);
+  if (!file) {
+    Serial.println(F("Failed to create Last Settings file."));
+    return;
+  }
+
+  // Allocate a temporary JsonDocument
+  // Don't forget to change the capacity to match your requirements.
+  // Use https://arduinojson.org/assistant to compute the capacity.
+  StaticJsonDocument<128> doc;
+
+  // Set the values in the document
+  doc["DoughServcieStatus"] = doughServcieStatus.getDoughServcieStatusEnum();
+  char strFormat[] = "MM-DD-YYYYThh:mm:ss";
+  DateTime startTime = doughServcieStatus.getFermentationStart();
+  doc["FermentationStart"] = startTime.toString(strFormat);
+  doc["DoughInitDist"] = doughServcieStatus.getDoughInitDist();
+  doc["CupBaseDis"] = doughServcieStatus.getCupBaseDist();
+
+  // Serialize JSON to file
+  if (serializeJson(doc, file) == 0) {
+    Serial.println(F("Failed to write Last Settings file."));
+  }
+
+  // Close the file
+  file.close();
+}
+
+//Read service status file and update the Class
+void readStatus() {
+
+  //read
+  if (SPIFFS.exists(lastSettingsFileName)) {
+    //File Exist
+    File file2 = SPIFFS.open(lastSettingsFileName);
+ 
+    if(!file2){
+        Serial.println("Failed to open Last Settings file for reading.");
+        return;
+    }
+ 
+    // Serial.println("File Content:"); 
+    // while(file2.available()) {
+      // Serial.write(file2.read());
+    // }
+    // Serial.println();
+
+    StaticJsonDocument<256> doc;
+    JsonObject obj = doc.as<JsonObject>();
+    DeserializationError error = deserializeJson(doc, file2);
+
+    // Test if parsing succeeds.
+    if (error) {
+      Serial.print(F("Deserialize Last Settings Json failed: "));
+      Serial.println(error.f_str());
+      return;
+    }
+      
+    DoughServcieStatusEnum statusFromFile = doc["DoughServcieStatus"].as<DoughServcieStatusEnum>();
+    Serial.printf("Status read from the file: %d\n", statusFromFile);
+    if (statusFromFile == DoughServcieStatusEnum::Fermenting) { 
+
+      //check fermentation start time
+      const char* fileDateStr = doc["FermentationStart"].as<const char*>();
+      DateTime fermStarted = DateTime(fileDateStr);
+      TimeSpan startedBefore = (rtc.now() - fermStarted);
+      Serial.printf("Last operation stopped during fermentation at %s - %d min ago.\n", 
+                    fileDateStr, startedBefore.minutes());
+
+      if (startedBefore.minutes() < fermentationAgingSpan) {
+        //Continue fermentation
+        Serial.printf("Continue fermentation.\n");
+        doughServcieStatus.setDoughServcieStatusEnum(DoughServcieStatusEnum::Fermenting);
+        doughServcieStatus.setFermentationStart(fermStarted);
+        doughServcieStatus.setDoughInitDist(doc["DoughInitDist"]);
+        doughServcieStatus.setCupBaseDist(doc["CupBaseDis"]);
+      }
+    }
+    file2.close();
+  } 
+}
+
 
 void StartFermentation() {
     
@@ -84,7 +183,7 @@ void StartFermentation() {
       doughServcieStatus.setDoughServcieStatusEnum(DoughServcieStatusEnum::Error);
     } else {
       DateTime currTime = rtc.now();
-      char strFormat[] = "MM-DD-YYYY hh:mm:ss";
+      char strFormat[] = "MM-DD-YYYYThh:mm:ss";
       Serial.print("Start Fermentation Process: ");Serial.print(currTime.toString(strFormat));
       Serial.print("\tInitialize Dough Distance: "); Serial.println(currDoughDist);
       
@@ -100,6 +199,9 @@ void StartFermentation() {
 
       //update BLE device status changed
       xBleDoughHeight.sendStatustData(doughServcieStatus.getDoughServcieStatusEnum());
+
+      //save service status iin case the system restart
+      saveStatus();
     }
 }
 
@@ -231,6 +333,14 @@ void setup() {
   xBleDoughHeight.initBLE();
   xBleDoughHeight.regDoughServiceBLECallback(new DoughServiceBLECallback());
 
+  //Start SPIFF
+  if(!SPIFFS.begin(true)){
+     Serial.println("An Error has occurred while mounting SPIFFS");
+     return;
+  }
+
+  //Read Service status 
+  readStatus();
 
   delay(750);
 }
@@ -280,6 +390,7 @@ void loop() {
         xBleDoughHeight.sendHeightData(currDoughDist);
         doughServcieStatus.setFermPercentage(fermPercent);
         xBleDoughHeight.sendDoughFermPercentData(fermPercent);
+
 
         //check if reached desired fermentation status
         float desiredPercentage = doughServcieStatus.getDesiredFermPercentage();
