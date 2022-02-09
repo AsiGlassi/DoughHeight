@@ -49,7 +49,7 @@ BLEDoughHeight xBleDoughHeight(&doughServcieStatus);
 const char *lastSettingsFileName = "/LastSettings.json";
 
 //pn352
-#define PN532_IRQ   (2)
+#define PN532_IRQ   (34)
 #define PN532_RESET (3)  // Not connected by default on the NFC Shield
 Adafruit_PN532 nfc(PN532_IRQ, PN532_RESET);
 #ifdef ESP32
@@ -60,8 +60,7 @@ Adafruit_PN532 nfc(PN532_IRQ, PN532_RESET);
 const int DELAY_BETWEEN_CARDS = 500;
 long timeLastCardRead = 0;
 boolean readerDisabled = false;
-int irqCurr;
-int irqPrev;
+volatile bool cardReadWaiting = false;
 
 //interval
 unsigned long sendInterval = 3000;
@@ -294,12 +293,17 @@ public:
 };
 
 
+void IRAM_ATTR detectsNFCCard() {
+  Serial.println("IRQ - ISO14443A Card ...");
+  detachInterrupt(PN532_IRQ); 
+  cardReadWaiting = true;
+}
+
 void startListeningToNFC() {
-  // Reset our IRQ indicators
-  irqPrev = irqCurr = HIGH;
   
-  Serial.println("Waiting for an ISO14443A Card ...\n");
+  Serial.println("Waiting for an ISO14443A Card ...");
   nfc.startPassiveTargetIDDetection(PN532_MIFARE_ISO14443A);
+  attachInterrupt(PN532_IRQ, detectsNFCCard, FALLING); //Enable interrupt after starting NFC
 }
 
 void handleCardDetected() {
@@ -338,6 +342,7 @@ void handleCardDetected() {
 
     // The reader will be enabled again after DELAY_BETWEEN_CARDS ms will pass.
     readerDisabled = true;
+    cardReadWaiting = false;
 }
 
 
@@ -346,6 +351,8 @@ void setup() {
   pinMode(LED_BUILTIN, OUTPUT);
   pinMode(33, OUTPUT);
   pinMode(BUZZ_PIN, OUTPUT);
+  pinMode(PN532_IRQ, INPUT_PULLUP);
+
 
   //initiate value
   floorDist = 255;
@@ -400,8 +407,8 @@ void setup() {
     // configure board to read RFID tags
     nfc.SAMConfig();
 
-    startListeningToNFC();
-  }
+  	startListeningToNFC();
+}
 
   //Start Pixel light
   leds.initLed();
@@ -423,6 +430,13 @@ void setup() {
 }
 
 void loop() {
+
+  //check if there is NFC Card Detected.
+  if (cardReadWaiting) {     
+    handleCardDetected();
+    delay(150);
+    startListeningToNFC();
+  }
   
   if (xBleDoughHeight.isDeviceConnected()) {
     
