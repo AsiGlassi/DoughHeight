@@ -105,7 +105,7 @@ void BLEDoughHeight::initBLE() {
     pAdvertising->setMinPreferred(0x12);
     BLEDevice::startAdvertising();
     
-    Serial.println("BLE Dough Height Server Started");                              
+    Serial.println("BLE Dough Height Server Started\n");                              
 }
 
 bool BLEDoughHeight::isDeviceConnected() {

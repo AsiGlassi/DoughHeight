@@ -5,6 +5,8 @@
 #include <SparkFun_VL6180X.h>
 #include <ArduinoJson.h>
 #include <SPIFFS.h>
+#include <Adafruit_PN532.h>
+
  
 #include "CyrcularAvg.h"
 #include "LedDough.h"
@@ -32,6 +34,7 @@ CyrcularAvg avgDistance(10);
 uint8_t currDoughFermPercent = 0;
 int distanseEpsilon = 2;
 int minDoughHeight = 20;
+int floorDist=0;
 
 //Pixel
 LedDough leds;
@@ -44,6 +47,21 @@ BLEDoughHeight xBleDoughHeight(&doughServcieStatus);
 
 // Service Status files
 const char *lastSettingsFileName = "/LastSettings.json";
+
+//pn352
+#define PN532_IRQ   (2)
+#define PN532_RESET (3)  // Not connected by default on the NFC Shield
+Adafruit_PN532 nfc(PN532_IRQ, PN532_RESET);
+#ifdef ESP32
+    uint32_t frequency = 100000;
+#else
+    uint32_t frequency = 1000000;
+#endif
+const int DELAY_BETWEEN_CARDS = 500;
+long timeLastCardRead = 0;
+boolean readerDisabled = false;
+int irqCurr;
+int irqPrev;
 
 //interval
 unsigned long sendInterval = 3000;
@@ -138,7 +156,7 @@ void readStatus() {
     // Serial.println();
 
     StaticJsonDocument<256> doc;
-    JsonObject obj = doc.as<JsonObject>();
+    // JsonObject obj = doc.as<JsonObject>();
     DeserializationError error = deserializeJson(doc, file2);
 
     // Test if parsing succeeds.
@@ -275,7 +293,53 @@ public:
   }
 };
 
-int floorDist=0;
+
+void startListeningToNFC() {
+  // Reset our IRQ indicators
+  irqPrev = irqCurr = HIGH;
+  
+  Serial.println("Waiting for an ISO14443A Card ...\n");
+  nfc.startPassiveTargetIDDetection(PN532_MIFARE_ISO14443A);
+}
+
+void handleCardDetected() {
+    uint8_t success = false;
+    uint8_t uid[] = { 0, 0, 0, 0, 0, 0, 0 };  // Buffer to store the returned UID
+    uint8_t uidLength;                        // Length of the UID (4 or 7 bytes depending on ISO14443A card type)
+
+    // read the NFC tag's info
+    success = nfc.readDetectedPassiveTargetID(uid, &uidLength);
+    Serial.println(success ? "Read successful" : "Read failed (not a card?)");
+
+    if (success) {
+      // Display some basic information about the card
+      Serial.println("Found an ISO14443A card");
+      Serial.print("  UID Length: ");Serial.print(uidLength, DEC);Serial.println(" bytes");
+      Serial.print("  UID Value: ");
+      nfc.PrintHex(uid, uidLength);
+      
+      if (uidLength == 4)
+      {
+        // We probably have a Mifare Classic card ... 
+        uint32_t cardid = uid[0];
+        cardid <<= 8;
+        cardid |= uid[1];
+        cardid <<= 8;
+        cardid |= uid[2];  
+        cardid <<= 8;
+        cardid |= uid[3]; 
+        Serial.print("Seems to be a Mifare Classic card #");
+        Serial.println(cardid);
+      }
+      Serial.println("");
+
+      timeLastCardRead = millis();
+    }
+
+    // The reader will be enabled again after DELAY_BETWEEN_CARDS ms will pass.
+    readerDisabled = true;
+}
+
 
 void setup() {
 
@@ -308,11 +372,7 @@ void setup() {
   String cTimeStr = currTime.timestamp(DateTime::timestampOpt::TIMESTAMP_FULL);
   snprintf(strFormat, sizeof(strFormat), "%s", cTimeStr.c_str());
   Serial.printf(" -- %s -- \n\n", strFormat);
-
-  // char strFormat[25];
-  // snprintf(strFormat, sizeof(strFormat), "%4d%02d%02dT%02d:%02d:%02d", currTime.year(), currTime.month(), currTime.day(), currTime.hour(), currTime.minute(), currTime.second());
-  // Serial.printf(" -- %s --\n\n", strFormat);
-
+  
   //Start TOF Sensor
   Wire.begin();
   disSensor.getIdentification(&identification); // Retrieve manufacture info from device memory
@@ -323,8 +383,25 @@ void setup() {
     while (1)
       ;
   }
-
   disSensor.VL6180xDefautSettings(); // Load default settings to get started.
+
+  //Start NFC
+  nfc.begin();
+    
+  uint32_t versiondata = nfc.getFirmwareVersion();
+  if (! versiondata) {
+    Serial.println("\nDidn't find PN53x board !!!\n");
+  } else {
+    // Got ok data, print it out!
+    Serial.print("Found chip PN5"); Serial.println((versiondata>>24) & 0xFF, HEX); 
+    // Serial.print("Firmware ver. "); Serial.print((versiondata>>16) & 0xFF, DEC); 
+    // Serial.print('.'); Serial.println((versiondata>>8) & 0xFF, DEC);
+    
+    // configure board to read RFID tags
+    nfc.SAMConfig();
+
+    startListeningToNFC();
+  }
 
   //Start Pixel light
   leds.initLed();
