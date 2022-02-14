@@ -62,6 +62,9 @@ long timeLastCardRead = 0;
 boolean readerDisabled = false;
 volatile bool cardReadWaiting = false;
 
+//cup presence 
+#define CUP_PRESENCE_IRQ (35) 
+
 //interval
 unsigned long sendInterval = 3000;
 unsigned long lastSentTime = 0;
@@ -293,6 +296,12 @@ public:
 };
 
 
+void IRAM_ATTR CupStatusChanged() {
+  bool cupPresence = digitalRead(CUP_PRESENCE_IRQ);
+  Serial.printf("Cup Presence Status Changed to %d ...\n", cupPresence);
+  //detachInterrupt(CUP_PRESENCE_IRQ); 
+}
+
 void IRAM_ATTR detectsNFCCard() {
   Serial.println("IRQ - ISO14443A Card ...");
   detachInterrupt(PN532_IRQ); 
@@ -352,6 +361,7 @@ void setup() {
   pinMode(33, OUTPUT);
   pinMode(BUZZ_PIN, OUTPUT);
   pinMode(PN532_IRQ, INPUT_PULLUP);
+  pinMode(CUP_PRESENCE_IRQ, INPUT_PULLUP);
 
 
   //initiate value
@@ -416,6 +426,9 @@ void setup() {
   //init BLE
   xBleDoughHeight.initBLE();
   xBleDoughHeight.regDoughServiceBLECallback(new DoughServiceBLECallback());
+
+  //cup interupt
+  attachInterrupt(CUP_PRESENCE_IRQ, CupStatusChanged, CHANGE); 
 
   //Start SPIFF
   if(!SPIFFS.begin(true)){
