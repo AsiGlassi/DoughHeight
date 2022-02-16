@@ -1,7 +1,7 @@
 #include "BLEDoughHeight.h"
 
 void BLEDoughHeight::initBLE() {
-    Serial.println("BLE Init");
+    Serial.println("\nBLE Init");
     BLEDevice::init("Asi Dough Height");
     pServer = BLEDevice::createServer();
     pServer->setCallbacks(new TheServerCallBacks(this));

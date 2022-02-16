@@ -20,8 +20,8 @@
 #define BUZZ_PIN 14
 
 //RTC 
-// RTC_DS3231 rtc;
-RTC_DS1307 rtc;
+RTC_DS3231 rtc;
+// RTC_DS1307 rtc;
 
 //TOF - Distance measures
 #define VL6180X_ADDRESS 0x29
@@ -64,6 +64,7 @@ volatile bool cardReadWaiting = false;
 
 //cup presence 
 #define CUP_PRESENCE_IRQ (35) 
+hw_timer_t * cupPresenceTimer = NULL; 
 
 //interval
 unsigned long sendInterval = 3000;
@@ -295,12 +296,24 @@ public:
   }
 };
 
-
-void IRAM_ATTR CupStatusChanged() {
-  bool cupPresence = digitalRead(CUP_PRESENCE_IRQ);
-  Serial.printf("Cup Presence Status Changed to %d ...\n", cupPresence);
-  //detachInterrupt(CUP_PRESENCE_IRQ); 
+volatile unsigned long timeDiff;
+void IRAM_ATTR CupStatusChangedInt() {
+  detachInterrupt(CUP_PRESENCE_IRQ);
+  bool cupPresence = digitalRead(CUP_PRESENCE_IRQ);//need about 4-1 milli Sec to stable
+  timeDiff = micros();
+  Serial.printf("\nCup Presence Status Changed to %d ... %lu\n", cupPresence, micros() );
+  timerAlarmEnable(cupPresenceTimer);  
 }
+
+
+void IRAM_ATTR onCupPresenceTimerTimer() {
+  bool cupPresence = digitalRead(CUP_PRESENCE_IRQ);//need about 4-1 milli Sec to stable
+  unsigned long diff = micros()-timeDiff;
+  Serial.printf("Cup Presence Timer, Status - %d Took %lu\t%lu\n", cupPresence, micros(), diff);
+
+  attachInterrupt(CUP_PRESENCE_IRQ, CupStatusChangedInt, CHANGE); 
+}
+
 
 void IRAM_ATTR detectsNFCCard() {
   Serial.println("IRQ - ISO14443A Card ...");
@@ -364,22 +377,21 @@ void setup() {
   pinMode(CUP_PRESENCE_IRQ, INPUT_PULLUP);
 
 
+  Serial.begin(115200);
+  Serial.println("\n\n --- Starting Dough Fermentation Service ---");
+
   //initiate value
   floorDist = 255;
   doughServcieStatus.setCupBaseDist(floorDist-15);
-
-  // put your setup code here, to run once:
-  Serial.begin(115200);
-
-  Serial.println("\n\n --- Starting Dough Fermentation Service ---");
 
   // RTC 
   if (!rtc.begin()) {
     Serial.println("Couldn't find RTC!");
     Serial.flush();
-    abort();
+    delay(1000);
+    // abort();
   }
-  if (! rtc.isrunning()) {
+  if (rtc.lostPower()) {
     Serial.println("RTC is NOT running!");
     rtc.adjust(DateTime(__DATE__, __TIME__));
   }
@@ -397,8 +409,9 @@ void setup() {
 
   if (disSensor.VL6180xInit() != 0) {
     Serial.println("Failed to initialize. Freezing..."); // Initialize device and check for errors
-    while (1)
-      ;
+    Serial.flush();
+    delay(1000);
+    abort();
   }
   disSensor.VL6180xDefautSettings(); // Load default settings to get started.
 
@@ -408,6 +421,9 @@ void setup() {
   uint32_t versiondata = nfc.getFirmwareVersion();
   if (! versiondata) {
     Serial.println("\nDidn't find PN53x board !!!\n");
+    Serial.flush();
+    delay(1000);
+    // abort();
   } else {
     // Got ok data, print it out!
     Serial.print("Found chip PN5"); Serial.println((versiondata>>24) & 0xFF, HEX); 
@@ -416,7 +432,6 @@ void setup() {
     
     // configure board to read RFID tags
     nfc.SAMConfig();
-
   	startListeningToNFC();
 }
 
@@ -428,12 +443,19 @@ void setup() {
   xBleDoughHeight.regDoughServiceBLECallback(new DoughServiceBLECallback());
 
   //cup interupt
-  attachInterrupt(CUP_PRESENCE_IRQ, CupStatusChanged, CHANGE); 
+  int SamplingRate = 1000;          //Read 1000 values in one second.
+  attachInterrupt(CUP_PRESENCE_IRQ, CupStatusChangedInt, CHANGE); 
+  cupPresenceTimer = timerBegin(0, 80, true);               //Begin timer with 1 MHz frequency - 11 tick take 1/(80MHZ/80) = 1us
+  timerAttachInterrupt(cupPresenceTimer, &onCupPresenceTimerTimer, true);   
+  unsigned int timerFactor = 1000000/SamplingRate;          //Calculate the time interval between two readings, or more accurately, the number of cycles between two readings
+  timerAlarmWrite(cupPresenceTimer, timerFactor, false);     //Initialize the timer (one time)
 
   //Start SPIFF
   if(!SPIFFS.begin(true)){
-     Serial.println("An Error has occurred while mounting SPIFFS");
-     return;
+    Serial.println("An Error has occurred while mounting SPIFFS");
+    Serial.flush();
+    delay(1000);
+    abort();
   }
 
   //Read Service status 
