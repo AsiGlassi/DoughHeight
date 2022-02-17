@@ -21,7 +21,6 @@
 
 //RTC 
 RTC_DS3231 rtc;
-// RTC_DS1307 rtc;
 
 //TOF - Distance measures
 #define VL6180X_ADDRESS 0x29
@@ -299,18 +298,21 @@ public:
 volatile unsigned long timeDiff;
 void IRAM_ATTR CupStatusChangedInt() {
   detachInterrupt(CUP_PRESENCE_IRQ);
-  bool cupPresence = digitalRead(CUP_PRESENCE_IRQ);//need about 4-1 milli Sec to stable
   timeDiff = micros();
-  Serial.printf("\nCup Presence Status Changed to %d ... %lu\n", cupPresence, micros() );
+  Serial.printf("\nCup Presence Status Changed to ... %lu\n", micros() );
+  timerRestart(cupPresenceTimer);
+  timerWrite(cupPresenceTimer, 0);
   timerAlarmEnable(cupPresenceTimer);  
 }
 
 
 void IRAM_ATTR onCupPresenceTimerTimer() {
   bool cupPresence = digitalRead(CUP_PRESENCE_IRQ);//need about 4-1 milli Sec to stable
-  unsigned long diff = micros()-timeDiff;
-  Serial.printf("Cup Presence Timer, Status - %d Took %lu\t%lu\n", cupPresence, micros(), diff);
+  unsigned long timeNow = micros();
+  unsigned long diff = timeNow-timeDiff;
+  Serial.printf("Cup Presence Timer, Status - %d Took %lu\n", cupPresence, diff);
 
+  timerAlarmDisable(cupPresenceTimer); 
   attachInterrupt(CUP_PRESENCE_IRQ, CupStatusChangedInt, CHANGE); 
 }
 
@@ -443,12 +445,16 @@ void setup() {
   xBleDoughHeight.regDoughServiceBLECallback(new DoughServiceBLECallback());
 
   //cup interupt
-  int SamplingRate = 1000;          //Read 1000 values in one second.
   attachInterrupt(CUP_PRESENCE_IRQ, CupStatusChangedInt, CHANGE); 
-  cupPresenceTimer = timerBegin(0, 80, true);               //Begin timer with 1 MHz frequency - 11 tick take 1/(80MHZ/80) = 1us
+  //Begin timer with 1 MHz frequency - 11 tick take 1/(80MHZ/80) = 1us
+  cupPresenceTimer = timerBegin(0, (getApbFrequency()/1000000), true);
   timerAttachInterrupt(cupPresenceTimer, &onCupPresenceTimerTimer, true);   
-  unsigned int timerFactor = 1000000/SamplingRate;          //Calculate the time interval between two readings, or more accurately, the number of cycles between two readings
-  timerAlarmWrite(cupPresenceTimer, timerFactor, false);     //Initialize the timer (one time)
+  //Initialize the timer (one time).
+  //Todo - One time event doesnt work well for me, i set it to continues and i stop the timer at the end of timer event.
+  timerAlarmWrite(cupPresenceTimer, 1000000, true);
+  // Serial.print(" >> CPU Freq:   "); Serial.println(getCpuFrequencyMhz());
+  // Serial.print(" >> XTL Freq:   "); Serial.println(getXtalFrequencyMhz());
+  // Serial.print(" >> APB Freq:   "); Serial.println(getApbFrequency());
 
   //Start SPIFF
   if(!SPIFFS.begin(true)){
