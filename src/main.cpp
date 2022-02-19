@@ -176,16 +176,19 @@ void readStatus() {
       const char* fileDateStr = doc["FermentationStart"].as<const char*>();
       DateTime fermStarted = DateTime(fileDateStr);
       TimeSpan startedBefore = (rtc.now() - fermStarted);
+      unsigned int diffInMin = startedBefore.totalseconds()/60;
       Serial.printf("Last operation stopped during fermentation at %s - %d min ago.\n", 
-                    fileDateStr, startedBefore.minutes());
+                    fileDateStr, diffInMin);
 
-      if (startedBefore.minutes() < fermentationAgingSpan) {
+      if (diffInMin < fermentationAgingSpan) {
         //Continue fermentation
         Serial.printf("Continue fermentation.\n");
         doughServcieStatus.setDoughServcieStatusEnum(DoughServcieStatusEnum::Fermenting);
         doughServcieStatus.setFermentationStart(fermStarted);
         doughServcieStatus.setDoughInitDist(doc["DoughInitDist"]);
         doughServcieStatus.setCupBaseDist(doc["CupBaseDis"]);
+      } else {
+        Serial.printf("Ignoring Saved status - Past a long time since last run.\n");    
       }
     }
     file2.close();
@@ -390,30 +393,31 @@ void setup() {
   if (!rtc.begin()) {
     Serial.println("Couldn't find RTC!");
     Serial.flush();
-    delay(1000);
+    delay(3000);
     // abort();
   }
+
   if (rtc.lostPower()) {
     Serial.println("RTC is NOT running!");
     rtc.adjust(DateTime(__DATE__, __TIME__));
   }
-  DateTime currTime = rtc.now();
   
+  DateTime currTime = rtc.now();
   char strFormat[25];
   String cTimeStr = currTime.timestamp(DateTime::timestampOpt::TIMESTAMP_FULL);
   snprintf(strFormat, sizeof(strFormat), "%s", cTimeStr.c_str());
   Serial.printf(" -- %s -- \n\n", strFormat);
   
   //Start TOF Sensor
-  Wire.begin();
+  // Wire.begin();
   disSensor.getIdentification(&identification); // Retrieve manufacture info from device memory
   //printIdentification(&identification);      
 
   if (disSensor.VL6180xInit() != 0) {
-    Serial.println("Failed to initialize. Freezing..."); // Initialize device and check for errors
+    Serial.println("Failed to initialize VL6180x."); // Initialize device and check for errors
     Serial.flush();
-    delay(1000);
-    abort();
+    delay(3000);
+    // abort();
   }
   disSensor.VL6180xDefautSettings(); // Load default settings to get started.
 
@@ -424,7 +428,7 @@ void setup() {
   if (! versiondata) {
     Serial.println("\nDidn't find PN53x board !!!\n");
     Serial.flush();
-    delay(1000);
+    delay(3000);
     // abort();
   } else {
     // Got ok data, print it out!
@@ -460,8 +464,8 @@ void setup() {
   if(!SPIFFS.begin(true)){
     Serial.println("An Error has occurred while mounting SPIFFS");
     Serial.flush();
-    delay(1000);
-    abort();
+    delay(3000);
+    // abort();
   }
 
   //Read Service status 
