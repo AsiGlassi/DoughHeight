@@ -55,7 +55,7 @@ Adafruit_PN532 nfc(PN532_IRQ, PN532_RESET);
 const int DELAY_BETWEEN_CARDS = 1000;//500 caused issue 
 long timeLastCardRead = 0;
 volatile bool connected = false;
-boolean readerDisabled = false;
+boolean readerDisabled = true;//false
 volatile bool cardReadWaiting = false;
 
 //cup presence 
@@ -341,40 +341,6 @@ void IRAM_ATTR detectsNFCCard() {
 }
 
 
-
-void IRAM_ATTR CupStatusChangedInt() {
-  //Object found, Start timer and check
-  // detachInterrupt(CUP_PRESENCE_IRQ);
-  timeDiff = micros();
-  Serial.printf("\nCup Presence Status Changed ... %lu\n", micros() );
-
-  // timerRestart(cupPresenceTimer);
-  // timerWrite(cupPresenceTimer, 0);
-  // timerAlarmEnable(cupPresenceTimer);  
-}
-
-
-void IRAM_ATTR onCupPresenceTimerTimer() {
-  //Disable timer
-  timerAlarmDisable(cupPresenceTimer); 
-
-  //Check if cup presence
-  bool cupPresence = !digitalRead(CUP_PRESENCE_IRQ);//need about 4-1 milli Sec to stable
-
-  unsigned long timeNow = micros();
-  unsigned long diff = timeNow-timeDiff;
-  Serial.printf("Cup Presence Timer, Status - %d Took %lu\n", cupPresence, diff);
-
-  if(cupPresence)	{
-    //cup presence - try to read NFC
-    // startListeningToNFC();
-  }
-
-  //cup interupt
-  attachInterrupt(CUP_PRESENCE_IRQ, CupStatusChangedInt, FALLING); 
-}
-
-
 void startListeningToNFC() {
   Serial.println("StartListeningToNFC - Waiting for card (ISO14443A Mifare)...");
 
@@ -396,26 +362,56 @@ bool nfcConnect() {
   }
 
   //port
-  Serial.print("Found chip PN5"); Serial.println((versiondata >> 24) & 0xFF, HEX);
-  Serial.print("Firmware version: "); Serial.print((versiondata >> 16) & 0xFF, DEC);
+  Serial.print("Found chip PN5"); Serial.print((versiondata >> 24) & 0xFF, HEX);
+  Serial.print(", Firmware version: "); Serial.print((versiondata >> 16) & 0xFF, DEC);
   Serial.print('.'); Serial.println((versiondata >> 8) & 0xFF, DEC);
 
   // configure board to read RFID tags
   nfc.SAMConfig();
 
-  startListeningToNFC();
   return true;
+}
+
+void IRAM_ATTR CupStatusChangedInt() {
+  //Object found, Start timer and check
+  detachInterrupt(CUP_PRESENCE_IRQ);
+  timeDiff = micros();
+  Serial.printf("\nCup Presence Status Changed ... %lu\n", micros() );
+
+  timerRestart(cupPresenceTimer);
+  timerWrite(cupPresenceTimer, 0);
+  timerAlarmEnable(cupPresenceTimer);  
+}
+
+volatile bool cupPresence = false;
+
+void IRAM_ATTR onCupPresenceTimerTimer() {
+  //Disable timer
+  timerAlarmDisable(cupPresenceTimer); 
+
+  //Check if cup presence
+  cupPresence = !digitalRead(CUP_PRESENCE_IRQ);//need about 4-1 milli Sec to stable
+
+  unsigned long timeNow = micros();
+  unsigned long diff = timeNow-timeDiff;
+  Serial.printf("Cup Presence Timer, Status - %d Took %lu\n", cupPresence, diff);
+
+  if(cupPresence)	{
+    //cup presence - try to read NFC
+    // startListeningToNFC();// ddoesnt work with int cup
+  } else {
+    // cup not present, set interupt
+    attachInterrupt(CUP_PRESENCE_IRQ, CupStatusChangedInt, FALLING); 
+  }
 }
 
 
 void setup() {
 
   pinMode(LED_BUILTIN, OUTPUT);
-  // pinMode(33, OUTPUT);
   pinMode(BUZZ_PIN, OUTPUT);
   pinMode(PN532_IRQ, INPUT_PULLUP);
   pinMode(CUP_PRESENCE_IRQ, INPUT_PULLUP);
-
 
   Serial.begin(115200);
   Serial.println("\n\n --- Starting Dough Fermentation Service ---");
@@ -456,15 +452,15 @@ void setup() {
   }
   disSensor.VL6180xDefautSettings(); // Load default settings to get started.
 
+  //Start Pixel light
+  leds.initLed();
+
   //Start NFC
   if (!nfcConnect()) {
     Serial.println("Failed to initialize NFC tag reader."); 
     delay(3000);
     // abort();
   }  
-
-  //Start Pixel light
-  leds.initLed();
 
   //cup interupt
   attachInterrupt(CUP_PRESENCE_IRQ, CupStatusChangedInt, FALLING); 
@@ -473,7 +469,7 @@ void setup() {
   timerAttachInterrupt(cupPresenceTimer, &onCupPresenceTimerTimer, true);   
   //Initialize the timer (one time).
   //Todo - One time event doesnt work well for me, i set it to continues and i stop the timer at the end of timer event.
-  timerAlarmWrite(cupPresenceTimer, 2000000, true);//1000000
+  timerAlarmWrite(cupPresenceTimer, 1000000*0.75, true);//1000000
   // Serial.print(" >> CPU Freq:   "); Serial.println(getCpuFrequencyMhz());
   // Serial.print(" >> XTL Freq:   "); Serial.println(getXtalFrequencyMhz());
   // Serial.print(" >> APB Freq:   "); Serial.println(getApbFrequency());
@@ -505,8 +501,16 @@ void loop() {
   } else if (readerDisabled) {
     if (millis() - timeLastCardRead > DELAY_BETWEEN_CARDS) {
       readerDisabled = false;
-      startListeningToNFC(); // Enable CUP INT 
+      //cup interupt
+      attachInterrupt(CUP_PRESENCE_IRQ, CupStatusChangedInt, FALLING); 
     }
+  } else if(cupPresence)	{
+    cupPresence=false;
+    //cup presence - try to read NFC
+    startListeningToNFC();// ddoesnt work with int cup
+  } else {
+    // cup not present, set interupt
+    // attachInterrupt(CUP_PRESENCE_IRQ, CupStatusChangedInt, FALLING); 
   }
   
   if (xBleDoughHeight.isDeviceConnected()) {
