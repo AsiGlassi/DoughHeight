@@ -380,7 +380,6 @@ void startListeningToNFC() {
 
   //Enable interrupt after starting NFC
   nfc.startPassiveTargetIDDetection(PN532_MIFARE_ISO14443A);
-  delay(25);
   attachInterrupt(PN532_IRQ, detectsNFCCard, FALLING); 
 }
 
@@ -467,10 +466,6 @@ void setup() {
   //Start Pixel light
   leds.initLed();
 
-  //init BLE
-  xBleDoughHeight.initBLE();
-  xBleDoughHeight.regDoughServiceBLECallback(new DoughServiceBLECallback());
-
   //cup interupt
   attachInterrupt(CUP_PRESENCE_IRQ, CupStatusChangedInt, FALLING); 
   //Begin timer with 1 MHz frequency - 11 tick take 1/(80MHZ/80) = 1us
@@ -483,7 +478,6 @@ void setup() {
   // Serial.print(" >> XTL Freq:   "); Serial.println(getXtalFrequencyMhz());
   // Serial.print(" >> APB Freq:   "); Serial.println(getApbFrequency());
 
-
   //Start SPIFF
   if(!SPIFFS.begin(true)){
     Serial.println("An Error has occurred while mounting SPIFFS");
@@ -494,6 +488,10 @@ void setup() {
 
   //Read Service status 
   // readStatus();
+
+  //init BLE
+  xBleDoughHeight.initBLE();
+  xBleDoughHeight.regDoughServiceBLECallback(new DoughServiceBLECallback());
 
   delay(750);
 }
@@ -571,9 +569,6 @@ void loop() {
       }
     }
   }
-  delay(500);
+  // delay(500); //causing issues with BLE & NFC
 }
-
-
-
 
