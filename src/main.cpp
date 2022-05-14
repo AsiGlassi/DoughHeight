@@ -1,5 +1,5 @@
-#include <RTClib.h>
 #include <Arduino.h>
+#include <RTClib.h>
 #include <SPI.h>
 #include <Wire.h>
 #include <SparkFun_VL6180X.h>
@@ -48,16 +48,13 @@ BLEDoughHeight xBleDoughHeight(&doughServcieStatus);
 const char *lastSettingsFileName = "/LastSettings.json";
 
 //pn352
-#define PN532_IRQ   (34)
-#define PN532_RESET (3)  // Not connected by default on the NFC Shield
+#define PN532_IRQ   (32)
+#define PN532_RESET (4)  // Not connected by default on the NFC Shield
 Adafruit_PN532 nfc(PN532_IRQ, PN532_RESET);
-#ifdef ESP32
-    uint32_t frequency = 100000;
-#else
-    uint32_t frequency = 1000000;
-#endif
-const int DELAY_BETWEEN_CARDS = 500;
+
+const int DELAY_BETWEEN_CARDS = 1000;//500 caused issue 
 long timeLastCardRead = 0;
+volatile bool connected = false;
 boolean readerDisabled = false;
 volatile bool cardReadWaiting = false;
 
@@ -299,84 +296,123 @@ public:
 };
 
 volatile unsigned long timeDiff;
-void IRAM_ATTR CupStatusChangedInt() {
-  detachInterrupt(CUP_PRESENCE_IRQ);
-  timeDiff = micros();
-  Serial.printf("\nCup Presence Status Changed to ... %lu\n", micros() );
-  timerRestart(cupPresenceTimer);
-  timerWrite(cupPresenceTimer, 0);
-  timerAlarmEnable(cupPresenceTimer);  
-}
-
-
-void IRAM_ATTR onCupPresenceTimerTimer() {
-  bool cupPresence = digitalRead(CUP_PRESENCE_IRQ);//need about 4-1 milli Sec to stable
-  unsigned long timeNow = micros();
-  unsigned long diff = timeNow-timeDiff;
-  Serial.printf("Cup Presence Timer, Status - %d Took %lu\n", cupPresence, diff);
-
-  timerAlarmDisable(cupPresenceTimer); 
-  attachInterrupt(CUP_PRESENCE_IRQ, CupStatusChangedInt, CHANGE); 
-}
-
-
-void IRAM_ATTR detectsNFCCard() {
-  Serial.println("IRQ - ISO14443A Card ...");
-  detachInterrupt(PN532_IRQ); 
-  cardReadWaiting = true;
-}
-
-void startListeningToNFC() {
-  
-  Serial.println("Waiting for an ISO14443A Card ...");
-  nfc.startPassiveTargetIDDetection(PN532_MIFARE_ISO14443A);
-  attachInterrupt(PN532_IRQ, detectsNFCCard, FALLING); //Enable interrupt after starting NFC
-}
 
 void handleCardDetected() {
-    uint8_t success = false;
-    uint8_t uid[] = { 0, 0, 0, 0, 0, 0, 0 };  // Buffer to store the returned UID
-    uint8_t uidLength;                        // Length of the UID (4 or 7 bytes depending on ISO14443A card type)
+  
+  bool success;
+
+  Serial.println("Handelling");
+
+  // Buffer to store the UID
+  uint8_t uid[] = { 0, 0, 0, 0, 0, 0, 0 };
+  // UID size (4 or 7 bytes depending on card type)
+  uint8_t uidLength;
 
     // read the NFC tag's info
     success = nfc.readDetectedPassiveTargetID(uid, &uidLength);
+
     Serial.println(success ? "Read successful" : "Read failed (not a card?)");
 
-    if (success) {
-      // Display some basic information about the card
-      Serial.println("Found an ISO14443A card");
-      Serial.print("  UID Length: ");Serial.print(uidLength, DEC);Serial.println(" bytes");
-      Serial.print("  UID Value: ");
-      nfc.PrintHex(uid, uidLength);
-      
-      if (uidLength == 4)
-      {
-        // We probably have a Mifare Classic card ... 
-        uint32_t cardid = uid[0];
-        cardid <<= 8;
-        cardid |= uid[1];
-        cardid <<= 8;
-        cardid |= uid[2];  
-        cardid <<= 8;
-        cardid |= uid[3]; 
-        Serial.print("Seems to be a Mifare Classic card #");
-        Serial.println(cardid);
-      }
-      Serial.println("");
-
-      timeLastCardRead = millis();
+  // If the card is detected, print the UID
+  if (success) {
+    Serial.print("Size of UID: "); Serial.print(uidLength, DEC);
+    Serial.println(" bytes");
+    Serial.print("UID: ");
+    for (uint8_t i = 0; i < uidLength; i++)
+    {
+      Serial.print(" 0x"); Serial.print(uid[i], HEX);
+    }
+    Serial.println("\n\n");
+        
+    delay(1000);
     }
 
     // The reader will be enabled again after DELAY_BETWEEN_CARDS ms will pass.
     readerDisabled = true;
     cardReadWaiting = false;
+    timeLastCardRead = millis();
+}
+
+
+void IRAM_ATTR detectsNFCCard() {
+  Serial.printf("\nCard detected Interupt ... %lu\n", micros() );
+  detachInterrupt(PN532_IRQ); 
+  cardReadWaiting = true;
+}
+
+
+
+void IRAM_ATTR CupStatusChangedInt() {
+  //Object found, Start timer and check
+  // detachInterrupt(CUP_PRESENCE_IRQ);
+  timeDiff = micros();
+  Serial.printf("\nCup Presence Status Changed ... %lu\n", micros() );
+
+  // timerRestart(cupPresenceTimer);
+  // timerWrite(cupPresenceTimer, 0);
+  // timerAlarmEnable(cupPresenceTimer);  
+}
+
+
+void IRAM_ATTR onCupPresenceTimerTimer() {
+  //Disable timer
+  timerAlarmDisable(cupPresenceTimer); 
+
+  //Check if cup presence
+  bool cupPresence = !digitalRead(CUP_PRESENCE_IRQ);//need about 4-1 milli Sec to stable
+
+  unsigned long timeNow = micros();
+  unsigned long diff = timeNow-timeDiff;
+  Serial.printf("Cup Presence Timer, Status - %d Took %lu\n", cupPresence, diff);
+
+  if(cupPresence)	{
+    //cup presence - try to read NFC
+    // startListeningToNFC();
+  }
+
+  //cup interupt
+  attachInterrupt(CUP_PRESENCE_IRQ, CupStatusChangedInt, FALLING); 
+}
+
+
+void startListeningToNFC() {
+  Serial.println("StartListeningToNFC - Waiting for card (ISO14443A Mifare)...");
+
+  //Enable interrupt after starting NFC
+  nfc.startPassiveTargetIDDetection(PN532_MIFARE_ISO14443A);
+  delay(25);
+  attachInterrupt(PN532_IRQ, detectsNFCCard, FALLING); 
+}
+
+
+bool nfcConnect() {
+  
+  nfc.begin();
+
+  // Connected, show version
+  uint32_t versiondata = nfc.getFirmwareVersion();
+  if (! versiondata) {
+    Serial.println("\nDidn't find PN53x board !!!\n");
+    return false;
+  }
+
+  //port
+  Serial.print("Found chip PN5"); Serial.println((versiondata >> 24) & 0xFF, HEX);
+  Serial.print("Firmware version: "); Serial.print((versiondata >> 16) & 0xFF, DEC);
+  Serial.print('.'); Serial.println((versiondata >> 8) & 0xFF, DEC);
+
+  // configure board to read RFID tags
+  nfc.SAMConfig();
+
+  startListeningToNFC();
+  return true;
 }
 
 
 void setup() {
 
   pinMode(LED_BUILTIN, OUTPUT);
-  pinMode(33, OUTPUT);
+  // pinMode(33, OUTPUT);
   pinMode(BUZZ_PIN, OUTPUT);
   pinMode(PN532_IRQ, INPUT_PULLUP);
   pinMode(CUP_PRESENCE_IRQ, INPUT_PULLUP);
@@ -422,43 +458,31 @@ void setup() {
   disSensor.VL6180xDefautSettings(); // Load default settings to get started.
 
   //Start NFC
-  nfc.begin();
-    
-  uint32_t versiondata = nfc.getFirmwareVersion();
-  if (! versiondata) {
-    Serial.println("\nDidn't find PN53x board !!!\n");
-    Serial.flush();
+  if (!nfcConnect()) {
+    Serial.println("Failed to initialize NFC tag reader."); 
     delay(3000);
     // abort();
-  } else {
-    // Got ok data, print it out!
-    Serial.print("Found chip PN5"); Serial.println((versiondata>>24) & 0xFF, HEX); 
-    // Serial.print("Firmware ver. "); Serial.print((versiondata>>16) & 0xFF, DEC); 
-    // Serial.print('.'); Serial.println((versiondata>>8) & 0xFF, DEC);
-    
-    // configure board to read RFID tags
-    nfc.SAMConfig();
-  	startListeningToNFC();
-}
+  }  
 
   //Start Pixel light
   leds.initLed();
-  
+
   //init BLE
   xBleDoughHeight.initBLE();
   xBleDoughHeight.regDoughServiceBLECallback(new DoughServiceBLECallback());
 
   //cup interupt
-  attachInterrupt(CUP_PRESENCE_IRQ, CupStatusChangedInt, CHANGE); 
+  attachInterrupt(CUP_PRESENCE_IRQ, CupStatusChangedInt, FALLING); 
   //Begin timer with 1 MHz frequency - 11 tick take 1/(80MHZ/80) = 1us
   cupPresenceTimer = timerBegin(0, (getApbFrequency()/1000000), true);
   timerAttachInterrupt(cupPresenceTimer, &onCupPresenceTimerTimer, true);   
   //Initialize the timer (one time).
   //Todo - One time event doesnt work well for me, i set it to continues and i stop the timer at the end of timer event.
-  timerAlarmWrite(cupPresenceTimer, 1000000, true);
+  timerAlarmWrite(cupPresenceTimer, 2000000, true);//1000000
   // Serial.print(" >> CPU Freq:   "); Serial.println(getCpuFrequencyMhz());
   // Serial.print(" >> XTL Freq:   "); Serial.println(getXtalFrequencyMhz());
   // Serial.print(" >> APB Freq:   "); Serial.println(getApbFrequency());
+
 
   //Start SPIFF
   if(!SPIFFS.begin(true)){
@@ -469,18 +493,22 @@ void setup() {
   }
 
   //Read Service status 
-  readStatus();
+  // readStatus();
 
   delay(750);
 }
 
+
 void loop() {
 
   //check if there is NFC Card Detected.
-  if (cardReadWaiting) {     
+  if (cardReadWaiting) { 
     handleCardDetected();
-    delay(150);
-    startListeningToNFC();
+  } else if (readerDisabled) {
+    if (millis() - timeLastCardRead > DELAY_BETWEEN_CARDS) {
+      readerDisabled = false;
+      startListeningToNFC(); // Enable CUP INT 
+    }
   }
   
   if (xBleDoughHeight.isDeviceConnected()) {
