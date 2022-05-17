@@ -475,8 +475,8 @@ void setup() {
   // readStatus();
 
   //init BLE
-  // xBleDoughHeight.initBLE();
-  // xBleDoughHeight.regDoughServiceBLECallback(new DoughServiceBLECallback());
+  xBleDoughHeight.initBLE();
+  xBleDoughHeight.regDoughServiceBLECallback(new DoughServiceBLECallback());
 
   // startListeningToNFC();// For  testing
 
