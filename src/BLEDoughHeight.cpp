@@ -2,7 +2,7 @@
 
 void BLEDoughHeight::initBLE() {
     Serial.println("\nBLE Init");
-    BLEDevice::init("Asi Dough Height");
+    BLEDevice::init(DOUGH_DEVICE_NAME);
     pServer = BLEDevice::createServer();
     pServer->setCallbacks(new TheServerCallBacks(this));
     //numHandles = (# of Characteristics)*2 + (# of Services) + (# of Characteristics with BLE2902)
