@@ -2,26 +2,19 @@
 #define CyrcularAvg_h
 
 #include <Arduino.h>
+#include "Cyrcular.h"
 
-class CyrcularAvg {
+template <class T>
+class CyrcularAvg : public Cyrcular<T> {
 private:
 
-    // int*  itemArray = 0;//Cant work with dynamic allocation - Mem overload
-    int itemArray[40];
-    byte arrayLen = 0;
-    byte numOfItems = 0;
-
     int arraySum = 0;
-    byte pointer = 0;
-  
-    void NextPointer();
 public:
-    CyrcularAvg(byte len);
- 
-    float Avg();
-    void Insert(int value); 
-    void printDebug();
-    bool BufferFull() {return numOfItems >= arrayLen;}
-  
+    CyrcularAvg(byte lenx,  T tDefaultN) : Cyrcular<T> {lenx, tDefaultN} {
+    };
+
+    virtual void Insert(T value); 
+    virtual float Avg();
+    virtual void printDebug();
 };
 #endif

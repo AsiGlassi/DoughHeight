@@ -1,63 +1,37 @@
 #include "CyrcularAvg.h"
 
-CyrcularAvg::CyrcularAvg(byte len) {
-    arrayLen = len;
-    pointer = arrayLen;
-    // if (itemArray != 0) {
-    //     delete [] itemArray;
-    // }
-    // itemArray = new int [arrayLen];
-    // itemArray = (int *)malloc(len);
-    for (byte i = 0; i < arrayLen; i++) {
-        itemArray[i] = 0;
-    }
-}
 
-
-void CyrcularAvg::Insert(int value) {
+template<class T>
+void CyrcularAvg<T>::Insert(T value) {
 
     // Serial.printf("--> %d\n", value);
     
     //get next item pointer
-    NextPointer();
+    T theLastItem = Cyrcular<T>::GetNextItem();
 
     //subtract last item
-    if (numOfItems >= arrayLen) {       
-        arraySum -= itemArray[pointer];
-    } else {
-        numOfItems++;
+    if (Cyrcular<T>::numOfItems >= Cyrcular<T>::arrayLen) {       
+        arraySum -= theLastItem;
     }
-
+    
     //insert new item
-    itemArray[pointer] = value;
+    Cyrcular<T>::Insert(value);
     arraySum += value;
-}
+};
 
-void CyrcularAvg::NextPointer() {
-
-    if (pointer >= (arrayLen-1)) {
-        pointer = 0;
+template<class T>
+float CyrcularAvg<T>::Avg() {
+    if (Cyrcular<T>::numOfItems > Cyrcular<T>::arrayLen) {
+        return (float)Cyrcular<T>::arraySum/Cyrcular<T>::arrayLen;
     } else {
-        pointer++;
+        return (float)arraySum/Cyrcular<T>::numOfItems;
     }
-}
+};
 
-float CyrcularAvg::Avg() {
-    if (numOfItems > arrayLen) {
-        return (float)arraySum/arrayLen;
-    } else {
-        return (float)arraySum/numOfItems;
-    }
-}
-
-void CyrcularAvg::printDebug() {
+template <class T>
+void CyrcularAvg<T>::printDebug() {
     Serial.print("Array: ");
-    for (byte i = 0; i < arrayLen; i++) {
-        if (pointer==i) {Serial.print("<");}
-        Serial.print(itemArray[i]);
-        if (pointer==i) {Serial.print(">");}
-        Serial.print(" ");
-    }
+    Cyrcular<T>::printDebug();
     Serial.print(" Avg ");Serial.println(Avg());
-}
+};
 
