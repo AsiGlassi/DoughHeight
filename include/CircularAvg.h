@@ -1,16 +1,16 @@
-#ifndef CyrcularAvg_h
-#define CyrcularAvg_h
+#ifndef CircularAvg_h
+#define CircularAvg_h
 
 #include <Arduino.h>
-#include "Cyrcular.h"
+#include "Circular.h"
 
 template <class T>
-class CyrcularAvg : public Cyrcular<T> {
+class CircularAvg : public Circular<T> {
 private:
 
     int arraySum = 0;
 public:
-    CyrcularAvg(byte lenx,  T tDefaultN) : Cyrcular<T> {lenx, tDefaultN} {
+    CircularAvg(byte lenx,  T tDefaultN) : Circular<T> {lenx, tDefaultN} {
     };
 
     virtual void Insert(T value); 

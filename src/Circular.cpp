@@ -1,8 +1,8 @@
-#include "Cyrcular.h"
+#include "Circular.h"
 #include <sstream>
 
 template<class T>
-Cyrcular<T>::Cyrcular(byte len, T tDefault) : defaultValue(tDefault) {
+Circular<T>::Circular(byte len, T tDefault) : defaultValue(tDefault) {
     arrayLen = len;
     pointer = arrayLen;
     defaultValue = tDefault;
@@ -17,7 +17,7 @@ Cyrcular<T>::Cyrcular(byte len, T tDefault) : defaultValue(tDefault) {
 
 
 template<class T>
-void Cyrcular<T>::Insert(T value) {
+void Circular<T>::Insert(T value) {
 
     // Serial.printf("--> %d\n", value);
     
@@ -35,7 +35,7 @@ void Cyrcular<T>::Insert(T value) {
 
 
  template<class T>
- void Cyrcular<T>::NextPointer() {
+ void Circular<T>::NextPointer() {
 
     if (pointer >= (arrayLen-1)) {
         pointer = 0;
@@ -45,7 +45,7 @@ void Cyrcular<T>::Insert(T value) {
 }
 
 template<class T> 
-T Cyrcular<T>::GetNextItem() {
+T Circular<T>::GetNextItem() {
     T retItem;
     byte nextItem = pointer;
     if (pointer >= (arrayLen-1)) {
@@ -76,7 +76,7 @@ std::string toStr(T tmp)
 
 
  template<class T>
- void Cyrcular<T>::printDebug() {
+ void Circular<T>::printDebug() {
     Serial.print("Array: ");
     for (byte i = 0; i < arrayLen; i++) {
         if (pointer==i) {Serial.print("<");}

@@ -2,7 +2,7 @@
 #include <Arduino.h>
 
 template <class T>
-class Cyrcular {
+class Circular {
 
 protected:
 
@@ -19,7 +19,7 @@ protected:
     void NextPointer();
 
 public:
-    Cyrcular(byte len, T tDefault);
+    Circular(byte len, T tDefault);
  
     T GetLastItem() {return itemArray[pointer];};
     T GetNextItem();

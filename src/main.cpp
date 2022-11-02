@@ -8,10 +8,10 @@
 #include <Adafruit_PN532.h>
 
  
-#include "CyrcularAvg.h"
-#include "CyrcularAvg.cpp"
-#include "Cyrcular.h"
-#include "Cyrcular.cpp"
+#include "CircularAvg.h"
+#include "CircularAvg.cpp"
+#include "Circular.h"
+#include "Circular.cpp"
 
 #include "LedDough.h"
 #include "BLEDoughHeight.h"
@@ -34,7 +34,7 @@ VL6180x disSensor(VL6180X_ADDRESS);
 //Dough config
 uint8_t currDoughDist = 0;
 CyrcularAvg avgDistance(10);
-CyrcularAvg<int> avgDistance(10, 0);
+CircularAvg<int> avgDistance(10, 0);
 uint8_t currDoughFermPercent = 0;
 int distanseEpsilon = 2;
 int minDoughHeight = 20;
