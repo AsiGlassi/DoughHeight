@@ -1,1 +1,14 @@
-{"CupId":1,"CupBaseDis":240}
+[
+    {
+      "CupId": 1,
+      "CupBaseDis":240
+    },
+    {
+      "CupId": 2,
+      "CupBaseDis":200
+    },
+    {
+      "CupId": 3,
+      "CupBaseDis":235
+    }
+]

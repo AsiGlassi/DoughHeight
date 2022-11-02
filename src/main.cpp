@@ -13,6 +13,7 @@
 #include "Circular.h"
 #include "Circular.cpp"
 
+#include "DoughCup.h"
 #include "LedDough.h"
 #include "BLEDoughHeight.h"
 #include "DoughServcieStatus.h"
@@ -33,7 +34,7 @@ VL6180x disSensor(VL6180X_ADDRESS);
 
 //Dough config
 uint8_t currDoughDist = 0;
-CyrcularAvg avgDistance(10);
+uint8_t defaultDist = 0;
 CircularAvg<int> avgDistance(10, 0);
 uint8_t currDoughFermPercent = 0;
 int distanseEpsilon = 2;
@@ -52,7 +53,11 @@ BLEDoughHeight xBleDoughHeight(&doughServcieStatus);
 // Service Status files
 const char *lastSettingsFileName = "/LastSettings.json";
 
-//pn352
+// Cup List
+const char *cupsListFileName = "/Cups.json";
+DoughCup cupsList[40];
+
+//pn352 0x24
 #define PN532_IRQ   (32)
 #define PN532_RESET (4)  // Not connected by default on the NFC Shield
 Adafruit_PN532 nfc(PN532_IRQ, PN532_RESET);
@@ -469,6 +474,8 @@ void setup() {
   // Serial.print(" >> APB Freq:   "); Serial.println(getApbFrequency());
 
   //Start SPIFF
+  Serial.println("\nStarting SPIFFS");
+
   if(!SPIFFS.begin(true)){
     Serial.println("An Error has occurred while mounting SPIFFS");
     Serial.flush();
