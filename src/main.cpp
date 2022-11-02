@@ -9,6 +9,10 @@
 
  
 #include "CyrcularAvg.h"
+#include "CyrcularAvg.cpp"
+#include "Cyrcular.h"
+#include "Cyrcular.cpp"
+
 #include "LedDough.h"
 #include "BLEDoughHeight.h"
 #include "DoughServcieStatus.h"
@@ -30,6 +34,7 @@ VL6180x disSensor(VL6180X_ADDRESS);
 //Dough config
 uint8_t currDoughDist = 0;
 CyrcularAvg avgDistance(10);
+CyrcularAvg<int> avgDistance(10, 0);
 uint8_t currDoughFermPercent = 0;
 int distanseEpsilon = 2;
 int minDoughHeight = 20;
