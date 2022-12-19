@@ -8,11 +8,12 @@
 #include <Adafruit_PN532.h>
 
  
+#include <map>
 #include "CircularAvg.h"
 #include "CircularAvg.cpp"
-#include "Circular.h"
 #include "Circular.cpp"
 
+#include "NfcId.h"
 #include "DoughCup.h"
 #include "LedDough.h"
 #include "BLEDoughHeight.h"
@@ -55,13 +56,14 @@ const char *lastSettingsFileName = "/LastSettings.json";
 
 // Cup List
 const char *cupsListFileName = "/Cups.json";
-DoughCup cupsList[40];
+std::map<std::string, DoughCup> cupsMap;
 
 //pn352 0x24
 #define PN532_IRQ   (32)
 #define PN532_RESET (4)  // Not connected by default on the NFC Shield
 Adafruit_PN532 nfc(PN532_IRQ, PN532_RESET);
 
+//general 
 const int DELAY_BETWEEN_CARDS = 1000;//500 caused issue 
 long timeLastCardRead = 0;
 volatile bool connected = false;
@@ -75,7 +77,7 @@ volatile bool cupPresence = false;
 bool cupPresenceLast = cupPresence;
 
 //interval
-unsigned long sendInterval = 3000;
+unsigned long sendInterval = 5000;
 unsigned long lastSentTime = 0;
 unsigned int fermentationAgingSpan = 8*60;//in minutes 
 
@@ -147,28 +149,29 @@ void saveStatus() {
   file.close();
 }
 
+File openFile(const char* filePath) {
+  //read
+  File statusFile;
+  if (SPIFFS.exists(filePath)) {
+    //File Exist
+    statusFile = SPIFFS.open(filePath);
+ 
+    if(!statusFile) {
+        Serial.println("Failed to open Last Settings file for reading.");
+    }
+  }
+    return statusFile;
+}
+
 //Read service status file and update the Class
 void readStatus() {
 
   //read
-  if (SPIFFS.exists(lastSettingsFileName)) {
-    //File Exist
-    File file2 = SPIFFS.open(lastSettingsFileName);
+  File statusFile = openFile(lastSettingsFileName);
+  if (statusFile != 0) {
  
-    if(!file2){
-        Serial.println("Failed to open Last Settings file for reading.");
-        return;
-    }
- 
-    // Serial.println("File Content:"); 
-    // while(file2.available()) {
-      // Serial.write(file2.read());
-    // }
-    // Serial.println();
-
     StaticJsonDocument<256> doc;
-    // JsonObject obj = doc.as<JsonObject>();
-    DeserializationError error = deserializeJson(doc, file2);
+    DeserializationError error = deserializeJson(doc, statusFile);
 
     // Test if parsing succeeds.
     if (error) {
@@ -200,10 +203,125 @@ void readStatus() {
         Serial.printf("Ignoring Saved status - Past a long time since last run.\n");    
       }
     }
-    file2.close();
-  } 
+    statusFile.close();
+  } else {
+    Serial.println("Failed to open Last Settings for reading.");
+  }
 }
 
+void saveCups() {
+
+  if (SPIFFS.exists(cupsListFileName)) {
+    //File Exist
+    SPIFFS.remove(cupsListFileName);
+  }
+
+  // Open file for writing
+  File file = SPIFFS.open(cupsListFileName, FILE_WRITE);
+  if (!file) {
+    Serial.println(F("Error: Failed to create Cups List file."));
+    return;
+  }
+
+  // Allocate a temporary JsonDocument
+  // Don't forget to change the capacity to match your requirements.
+  // Use https://arduinojson.org/assistant to compute the capacity.
+  const int capacity = JSON_ARRAY_SIZE(1) + JSON_OBJECT_SIZE(1) + cupsMap.size()*94;
+ 
+   // StaticJsonDocument<capacity> doc;
+  DynamicJsonDocument doc(capacity);
+
+  Serial.print("Cup size save: "); Serial.println(cupsMap.size());
+  // Set the values in the document
+  JsonObject root = doc.to<JsonObject>();
+  JsonArray arr = root.createNestedArray("CupList");
+  
+  int i=0;
+  for (std::pair<std::string, DoughCup> element : cupsMap) {
+    DoughCup item = element.second;
+    Serial.println(item.str().c_str());
+    JsonObject arrObj = arr.createNestedObject();
+    arrObj["CupId"] = item.getCupId();
+    arrObj["CupBaseDis"] = item.getCupHeight();
+    i++;
+  }  
+  size_t actualCap = doc.capacity();// overflowed();
+  if (actualCap < capacity) {
+    //Json allocation Error
+    Serial.print("Error: Calc Capacity: "); Serial.print(capacity);
+    Serial.print(" Actual Cappacity "); Serial.println(actualCap);
+  }
+
+  // Serialize JSON to file
+  if (serializeJsonPretty(doc, file) == 0) {
+    Serial.println(F("Failed to write Last Settings file."));
+  }
+  // char buffer[1024];
+  // serializeJsonPretty(doc, buffer);
+  // Serial.println(buffer);
+
+  // Close the file
+  file.close();
+}
+
+void readCups() {
+
+  //read
+  File cupFile = openFile(cupsListFileName);
+  if (cupFile != 0) {
+ 
+    Serial.println("Read Cups File"); 
+    // while(cupFile.available()) {
+    //   Serial.write(cupFile.read());
+    // }
+    // Serial.println("\n");
+    // int fileSize = cupFile.size();
+    // Serial.print("\nFile Size: ");Serial.println(fileSize);
+
+    //Parse Json
+    StaticJsonDocument<1024> parsedDoc;
+    DeserializationError error = deserializeJson(parsedDoc, cupFile);
+    // Test if parsing succeeds.
+    if (error) {
+      Serial.print(F("Deserialize Cups Json failed: "));
+      Serial.println(error.f_str());
+      return;
+    }
+    
+    JsonArray cupArr = parsedDoc["CupList"].as<JsonArray>();
+    // int arraySize = cupArr.size();   
+    // Serial.print("\Cup size read: "); Serial.println(arraySize);
+ 
+    for (JsonObject cup : cupArr) {
+      const char* cupId = cup["CupId"].as<const char*>();
+      // Serial.print("CupId: "); Serial.print(cupId);
+      byte cupHeight = cup["CupBaseDis"].as<byte>();
+      // Serial.print("\tCupHeight: "); Serial.println(cupHeight);
+      DoughCup item(cupId, cupHeight);
+      cupsMap.insert(std::make_pair(item.getCupId(), item));
+    }
+ 
+    cupFile.close();
+  } else {
+    Serial.println("Cups file not found.");
+  }
+}
+
+void listDir(){
+ 
+  File root = SPIFFS.open("/");
+ 
+  File file = root.openNextFile();
+ 
+  while(file){
+ 
+      Serial.print("FILE: ");
+      Serial.println(file.name());
+ 
+      file = root.openNextFile();
+  }
+ 
+}
 
 void StartFermentation() {
     
@@ -308,40 +426,38 @@ public:
 };
 
 
-void handleCardDetected() {
+NfcId handleCardDetected() {
   
+  NfcId retUId;
   bool success;
 
   Serial.println("Handelling");
 
   // Buffer to store the UID
-  uint8_t uid[] = { 0, 0, 0, 0, 0, 0, 0 };
+  uint8_t uid[7] = { 0, 0, 0, 0, 0, 0, 0 };
   // UID size (4 or 7 bytes depending on card type)
   uint8_t uidLength;
 
-    // read the NFC tag's info
-    success = nfc.readDetectedPassiveTargetID(uid, &uidLength);
-
-    Serial.println(success ? "Read successful" : "Read failed (not a card?)");
-
-  // If the card is detected, print the UID
+  // read the NFC tag's info
+  success = nfc.readDetectedPassiveTargetID(uid, &uidLength);
   if (success) {
+
+    retUId.setIds(uid);
+    // If the card is detected, print the UID
     Serial.print("Size of UID: "); Serial.print(uidLength, DEC);
     Serial.println(" bytes");
     Serial.print("UID: ");
-    for (uint8_t i = 0; i < uidLength; i++)
-    {
-      Serial.print(" 0x"); Serial.print(uid[i], HEX);
-    }
+    Serial.print(retUId.str().c_str());
     Serial.println("\n\n");
-        
-    delay(1000);
-    }
+  } else {
+      Serial.println("Read failed (not a card?)");
+  }
 
-    // The reader will be enabled again after DELAY_BETWEEN_CARDS ms will pass.
-    readerDisabled = true;
-    cardReadWaiting = false;
-    timeLastCardRead = millis();
+  // The reader will be enabled again after DELAY_BETWEEN_CARDS ms will pass.
+  readerDisabled = true;
+  cardReadWaiting = false;
+  timeLastCardRead = millis();
+  return retUId;
 }
 
 
@@ -484,7 +600,19 @@ void setup() {
   }
 
   //Read Service status 
-  // readStatus();
+  //readStatus();
+
+  //read cup files
+  readCups();
+  Serial.print("Cup size:");
+  Serial.println(cupsMap.size());
+  // for (std::pair<std::string, DoughCup> element : cupsMap) {
+  //     Serial.print(element.first.c_str());
+  //     Serial.print(": ");
+  //     Serial.print(element.second.c_str());
+  //     Serial.println();
+  // }
+ 
 
   //init BLE
   xBleDoughHeight.initBLE();
@@ -501,7 +629,12 @@ void loop() {
   //check if there is NFC Card Detected.
   bool pastDelayTime = true;
   if (cardReadWaiting) { 
-    handleCardDetected();
+    //NFC found, read card
+    NfcId nfcId = handleCardDetected();
+
+    // check against current status, get cup details
+    doughServcieStatus.getCupBaseDist();
+
   } else if (readerDisabled) {
     if (millis() - timeLastCardRead > DELAY_BETWEEN_CARDS) {
       readerDisabled = false;

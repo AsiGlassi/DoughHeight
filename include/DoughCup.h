@@ -7,17 +7,21 @@
 class DoughCup {
 private:
 
-    int cupId = 0;
-    byte height = 0;
+    std::string cupId;
+    int height = 0;
   
 public:
     DoughCup() {height = 0;}
-    DoughCup(byte lHeight) {height = lHeight;}
-    DoughCup(int lCupId, byte lHeight) {cupId = lCupId, height = lHeight;}
+    DoughCup(int lHeight) {height = lHeight;}
+    DoughCup(std::string lCupId, int lHeight) {cupId = lCupId, height = lHeight;}
+
+    std::string getCupId(){return cupId;}
+    int getCupHeight(){return height;}
 
     std::string str() {
         std::stringstream ss;
-        ss << "{\"" << cupId << "\":" << (int)height << "}";
+        ss << "{\"" << cupId << "\":" << height << "}";
+        // ss << "{\"" << cupId << "\":" << height << "}";
         std::string ret = ss.str();
         return ret;
     }
