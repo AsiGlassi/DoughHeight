@@ -29,6 +29,8 @@ typedef void (*BleDoughServiceCallbackFunction)(void);
 class DoughServiceBLECallbacks {
 public:
 	virtual ~DoughServiceBLECallbacks() {};
+    virtual void onConnect();
+	virtual void onDisConnect();
 	virtual void onStart();
 	virtual void onStop();
 };
@@ -58,7 +60,7 @@ public:
     BLEDoughHeight(DoughServcieStatus* dServcieStatus) {bleDoughServcieStatus = dServcieStatus;}
     void initBLE();
 
-    void setDeviceConnected(bool conn) {deviceConnected = conn;}
+    void setDeviceConnected(bool conn);
     bool isDeviceConnected();
 
     DoughServcieStatus getBleDoughServcieStatus() {return *bleDoughServcieStatus;}

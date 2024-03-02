@@ -9,6 +9,19 @@ void NfcId::setIds(uint8_t nfcIds[7]) {
 }
 
 
+bool NfcId::isEmpty() {
+    bool empty = true;
+    for (uint8_t i = 0; i < 7; i++)
+    {
+      if (ids[i] != 0) {
+        empty = false;
+        break;
+      }  
+    }
+    return empty;    
+}
+
+
 std::string NfcId::str() {
     std::stringstream ss;
     for (uint8_t i = 0; i < 6; i++) {

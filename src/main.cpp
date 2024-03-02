@@ -423,6 +423,14 @@ public:
   void onStop() {
     StopFermentation();
   }
+
+  void onConnect() {
+    leds.BleConnected();
+  }
+
+  void onDisConnect() {
+    leds.BleDisConnected();
+  }
 };
 
 
@@ -523,6 +531,9 @@ void IRAM_ATTR onCupPresenceTimerTimer() {
 
 void setup() {
 
+  esp_log_level_set("*", ESP_LOG_WARN);        // set all components to ERROR level
+  esp_log_level_set("BLEDevice", ESP_LOG_ERROR);
+
   pinMode(LED_BUILTIN, OUTPUT);
   pinMode(BUZZ_PIN, OUTPUT);
   pinMode(PN532_IRQ, INPUT_PULLUP);
@@ -534,6 +545,13 @@ void setup() {
   //initiate value
   floorDist = 255;
   doughServcieStatus.setCupBaseDist(floorDist-15);
+
+  //Start Pixel light
+  leds.initLed();
+  
+    //init BLE
+  xBleDoughHeight.initBLE();
+  xBleDoughHeight.regDoughServiceBLECallback(new DoughServiceBLECallback());
 
   // RTC 
   if (!rtc.begin()) {
@@ -613,11 +631,6 @@ void setup() {
   //     Serial.println();
   // }
  
-
-  //init BLE
-  xBleDoughHeight.initBLE();
-  xBleDoughHeight.regDoughServiceBLECallback(new DoughServiceBLECallback());
-
   // startListeningToNFC();// For  testing
 
   delay(750);
@@ -631,6 +644,9 @@ void loop() {
   if (cardReadWaiting) { 
     //NFC found, read card
     NfcId nfcId = handleCardDetected();
+    if (nfcId.isEmpty()) {
+      //Error
+    }
 
     // check against current status, get cup details
     doughServcieStatus.getCupBaseDist();

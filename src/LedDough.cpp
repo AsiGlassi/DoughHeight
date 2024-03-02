@@ -3,7 +3,7 @@
 void LedDough::initLed() {
 
     strip.begin(); // Initialize pins for output
-    strip.setBrightness(25);
+    strip.setBrightness(35);
 
     idle();
 }
@@ -14,13 +14,16 @@ void LedDough::idle() {
  }
 
 void LedDough::BleConnected() {
-    SetFillColor(0xEEEEEE);
+    SetFillColor(colors[DoughServcieStatusEnum::Connected]);
+}
+
+void LedDough::BleDisConnected() {
+    SetFillColor(colors[DoughServcieStatusEnum::idle]);
 }
 
 void LedDough::Fermenting() {
     StartFadeLedTask(colors[DoughServcieStatusEnum::Fermenting]);
 }
-
 
 void LedDough::ReachedDesiredFerm() {
     SetFillColor(colors[DoughServcieStatusEnum::ReachedDesiredFerm]);
