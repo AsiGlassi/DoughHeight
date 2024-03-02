@@ -14,6 +14,7 @@ class NfcId {
     NfcId(){};
     NfcId(uint8_t nfcIds[7]){setIds(nfcIds);};
 
+    bool isEmpty();
     void setIds(uint8_t nfcIds[7]);
     std::string str();
 };

@@ -108,6 +108,18 @@ void BLEDoughHeight::initBLE() {
     Serial.println("BLE Dough Height Server Started\n");                              
 }
 
+    void BLEDoughHeight::setDeviceConnected(bool conn) {
+        deviceConnected = conn;
+        if (bleDoughHeightCallback != NULL) {
+            if(deviceConnected) {
+                bleDoughHeightCallback->onConnect(); 
+            } else {
+                bleDoughHeightCallback->onDisConnect();
+            }
+        }
+    }
+
+
 bool BLEDoughHeight::isDeviceConnected() {
        return deviceConnected;
 }
