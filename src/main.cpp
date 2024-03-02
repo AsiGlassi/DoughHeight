@@ -5,13 +5,14 @@
 #include <RTClib.h>
 #include <SPI.h>
 #include <Wire.h>
-#include <SparkFun_VL6180X.h>
+
+#include <Adafruit_VL53L0X.h>
+
 #include <ArduinoJson.h>
 #include <SPIFFS.h>
 #include <Adafruit_PN532.h>
-
- 
 #include <map>
+ 
 #include "CircularAvg.h"
 #include "CircularAvg.cpp"
 #include "Circular.cpp"
@@ -32,9 +33,8 @@
 RTC_DS3231 rtc;
 
 //TOF - Distance measures
-#define VL6180X_ADDRESS 0x29
-VL6180xIdentification identification;
-VL6180x disSensor(VL6180X_ADDRESS);
+Adafruit_VL53L0X lox = Adafruit_VL53L0X();
+
 
 //Dough config
 uint8_t currDoughDist = 0;
@@ -83,36 +83,6 @@ bool cupPresenceLast = cupPresence;
 unsigned long sendInterval = 5000;
 unsigned long lastSentTime = 0;
 unsigned int fermentationAgingSpan = 8*60;//in minutes 
-
-
-void printIdentification(struct VL6180xIdentification *temp) {
-  Serial.print("Model ID = ");
-  Serial.println(temp->idModel);
-
-  Serial.print("Model Rev = ");
-  Serial.print(temp->idModelRevMajor);
-  Serial.print(".");
-  Serial.println(temp->idModelRevMinor);
-
-  Serial.print("Module Rev = ");
-  Serial.print(temp->idModuleRevMajor);
-  Serial.print(".");
-  Serial.println(temp->idModuleRevMinor);
-
-  Serial.print("Manufacture Date = ");
-  Serial.print((temp->idDate >> 3) & 0x001F);
-  Serial.print("/");
-  Serial.print((temp->idDate >> 8) & 0x000F);
-  Serial.print("/1");
-  Serial.print((temp->idDate >> 12) & 0x000F);
-  Serial.print(" Phase: ");
-  Serial.println(temp->idDate & 0x0007);
-
-  Serial.print("Manufacture Time (s)= ");
-  Serial.println(temp->idTime * 2);
-  Serial.println();
-  Serial.println();
-}
 
 
 // Saves Dough Service Startus to a file
@@ -374,7 +344,7 @@ void ContFermenting() {
       // Serial.println("Continue Fermentation Process.");
 
       //set status
-      doughServcieStatus.setDoughServcieStatusEnum(DoughServcieStatusEnum::Fermenting);
+      doughServcieStatus.setDoughServcieStatusEnum(DoughServcieStatusEnum::Fermenting, "Continue Fermentation Process");
 
       //Set Light status
       leds.Fermenting();
@@ -387,7 +357,7 @@ void StopFermentation() {
     Serial.println("Stop Fermentation Process.");
 
     //set status
-    doughServcieStatus.setDoughServcieStatusEnum(DoughServcieStatusEnum::idle);
+    doughServcieStatus.setDoughServcieStatusEnum(DoughServcieStatusEnum::idle, "Stop Fermentation Process");
 
     //Set Light status
     leds.idle();
@@ -400,7 +370,7 @@ void ReachedDesiredFermentation() {
      Serial.println("Reached Desired Fermentation.");
 
     //set status
-    doughServcieStatus.setDoughServcieStatusEnum(DoughServcieStatusEnum::ReachedDesiredFerm);
+    doughServcieStatus.setDoughServcieStatusEnum(DoughServcieStatusEnum::ReachedDesiredFerm, "Reached Desired Fermentation");
 
     //Set Light status
     leds.ReachedDesiredFerm();
@@ -418,7 +388,7 @@ void OverFermentation() {
      Serial.println("Dough Over Fermentating.");
 
     //set status
-    doughServcieStatus.setDoughServcieStatusEnum(DoughServcieStatusEnum::OverFerm);
+    doughServcieStatus.setDoughServcieStatusEnum(DoughServcieStatusEnum::OverFerm, "Dough Over Fermentating");
 
     //Set Light status
     leds.OverFermentation();
@@ -426,7 +396,6 @@ void OverFermentation() {
     //update BLE device status changed
     xBleDoughHeight.sendStatustData(doughServcieStatus.getDoughServcieStatusEnum());
 }
-
 
 
 class DoughServiceBLECallback: public DoughServiceBLECallbacks {
@@ -540,6 +509,33 @@ void IRAM_ATTR onCupPresenceTimerTimer() {
 }
 
 
+void Setup_VL53L0X() {
+  Serial.println("Adafruit VL53L0X Init\n");
+  if (!lox.begin()) {
+    ErrorHandeling("Failed to boot VL53L0X\n");
+    while(3000);
+    //abort();
+  }
+  lox.configSensor(Adafruit_VL53L0X::VL53L0X_SENSE_HIGH_ACCURACY);
+  // lox.startRangeContinuous(125);
+}
+
+int VL53L0X_Dist() {
+  VL53L0X_RangingMeasurementData_t measure;
+    
+  // Serial.print("Reading a measurement... ");
+  lox.rangingTest(&measure, false); // pass in 'true' to get debug data printout!
+
+  if (measure.RangeStatus != 4) {  // phase failures have incorrect data
+    // Serial.print("Distance (mm): "); 
+    Serial.println(measure.RangeMilliMeter);
+  } else {
+    Serial.println("Distance out of range");
+  }
+  return measure.RangeMilliMeter;
+}
+
+
 void setup() {
 
   esp_log_level_set("*", ESP_LOG_WARN);        // set all components to ERROR level
@@ -584,20 +580,7 @@ void setup() {
   Serial.printf(" -- %s -- \n\n", strFormat);
   
   //Start TOF Sensor
-  // Wire.begin();
-  disSensor.getIdentification(&identification); // Retrieve manufacture info from device memory
-  //printIdentification(&identification);      
-
-  if (disSensor.VL6180xInit() != 0) {
-    Serial.println("Failed to initialize VL6180x."); // Initialize device and check for errors
-    Serial.flush();
-    delay(3000);
-    // abort();
-  }
-  disSensor.VL6180xDefautSettings(); // Load default settings to get started.
-
-  //Start Pixel light
-  leds.initLed();
+  Setup_VL53L0X();
 
   //Start NFC
   if (!nfcConnect()) {
@@ -660,7 +643,13 @@ void loop() {
     }
 
     // check against current status, get cup details
-    doughServcieStatus.getCupBaseDist();
+    DoughCup cupDetected = cupsMap[nfcId.str()];
+    int newCupH = cupDetected.getCupHeight();
+    int currCupH = doughServcieStatus.getCupBaseDist();
+    if (newCupH != currCupH) {
+      //Cup Changed...
+
+    }
 
   } else if (readerDisabled) {
     if (millis() - timeLastCardRead > DELAY_BETWEEN_CARDS) {
@@ -688,24 +677,10 @@ void loop() {
 
       lastSentTime = now;
       // Get Distance and report in mm
-      uint8_t tmpDist = disSensor.getDistance();
+      uint8_t tmpDist = VL53L0X_Dist();
       avgDistance.Insert(tmpDist);
       currDoughDist = (uint8_t)avgDistance.Avg();
 
-#ifdef DEBUG_MAIN
-        // Get Ambient Light level and report in LUX
-        Serial.print("Ambient Light Level (Lux) = ");
-        // Input GAIN for light levels,
-        //  GAIN_20     // Actual ALS Gain of 20
-        //  GAIN_10     // Actual ALS Gain of 10.32
-        //  GAIN_5      // Actual ALS Gain of 5.21
-        //  GAIN_2_5    // Actual ALS Gain of 2.60
-        //  GAIN_1_67   // Actual ALS Gain of 1.72
-        //  GAIN_1_25   // Actual ALS Gain of 1.28
-        //  GAIN_1      // Actual ALS Gain of 1.01
-        //  GAIN_40     // Actual ALS Gain of 40
-        Serial.println(disSensor.getAmbientLight(GAIN_1));
-#endif
       
       if ((doughServcieStatus.getDoughServcieStatusEnum() == DoughServcieStatusEnum::Fermenting) ||
         (doughServcieStatus.getDoughServcieStatusEnum() == DoughServcieStatusEnum::ReachedDesiredFerm)|| 
