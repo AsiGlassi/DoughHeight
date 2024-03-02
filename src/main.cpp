@@ -1,3 +1,6 @@
+#define LOG_LOCAL_LEVEL ESP_LOG_VERBOSE
+#include <esp_log.h>
+
 #include <Arduino.h>
 #include <RTClib.h>
 #include <SPI.h>
@@ -323,14 +326,26 @@ void listDir(){
  
 }
 
+
+void ErrorHandeling(std::string errorMsg) {
+    Serial.printf("Dough Service Error %s.\n", errorMsg.c_str());
+
+    //set status
+    doughServcieStatus.setDoughServcieStatusEnum(DoughServcieStatusEnum::Error, errorMsg);
+
+    //Set Light status
+    leds.Error();
+
+    //update BLE device status changed
+    xBleDoughHeight.sendStatustData(doughServcieStatus.getDoughServcieStatusEnum());
+}
+
 void StartFermentation() {
     
     if (currDoughDist == 0) {
-      Serial.println("Cant start process, Distance = 0.");
-      doughServcieStatus.setDoughServcieStatusEnum(DoughServcieStatusEnum::Error);
+      ErrorHandeling("Cant start process, Distance = 0.");
     } else if (abs(currDoughDist - doughServcieStatus.getCupBaseDist()) < minDoughHeight) {
-      Serial.println("Cant start process, Dough level is too low.");
-      doughServcieStatus.setDoughServcieStatusEnum(DoughServcieStatusEnum::Error);
+      ErrorHandeling("Cant start process, Dough level is too low.");
     } else {
       DateTime currTime = rtc.now();
       char strFormat[] = "MM-DD-YYYYThh:mm:ss";
@@ -341,7 +356,7 @@ void StartFermentation() {
       doughServcieStatus.setDoughInitDist(currDoughDist);
 
       //set status
-      doughServcieStatus.setDoughServcieStatusEnum(DoughServcieStatusEnum::Fermenting);
+      doughServcieStatus.setDoughServcieStatusEnum(DoughServcieStatusEnum::Fermenting, "Start Fermentation");
       doughServcieStatus.setFermentationStart(currTime);
 
       //Set Light status
@@ -468,13 +483,11 @@ NfcId handleCardDetected() {
   return retUId;
 }
 
-
 void IRAM_ATTR detectsNFCCard() {
   Serial.printf("\nNFC Card detected Interupt ... %lu\n", micros() );
   detachInterrupt(PN532_IRQ); 
   cardReadWaiting = true;
 }
-
 
 void startListeningToNFC() {
   Serial.println("StartListeningToNFC - Waiting for card (ISO14443A Mifare)...");
@@ -483,7 +496,6 @@ void startListeningToNFC() {
   nfc.startPassiveTargetIDDetection(PN532_MIFARE_ISO14443A);
   attachInterrupt(PN532_IRQ, detectsNFCCard, FALLING); 
 }
-
 
 bool nfcConnect() {
   
@@ -517,7 +529,6 @@ void IRAM_ATTR CupStatusChangedInt() {
   timerWrite(cupPresenceTimer, 0);
   timerAlarmEnable(cupPresenceTimer);  
 }
-
 
 void IRAM_ATTR onCupPresenceTimerTimer() {
   //Disable timer
@@ -555,7 +566,7 @@ void setup() {
 
   // RTC 
   if (!rtc.begin()) {
-    Serial.println("Couldn't find RTC!");
+    ErrorHandeling("Couldn't find RTC!");
     Serial.flush();
     delay(3000);
     // abort();
@@ -590,7 +601,7 @@ void setup() {
 
   //Start NFC
   if (!nfcConnect()) {
-    Serial.println("Failed to initialize NFC tag reader."); 
+    ErrorHandeling("Failed to initialize NFC tag reader."); 
     delay(3000);
     // abort();
   }  

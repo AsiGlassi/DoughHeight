@@ -78,7 +78,7 @@ void BLEDoughHeight::initBLE() {
     statusRWDescriptor.setValue("Service Status");
     pStatusCharacteristic->addDescriptor(&statusRWDescriptor);
 
-    pStatusCharacteristic->setValue("N/A");
+    pStatusCharacteristic->setValue("{\"Status\": 0x0, \"Message\": \"N/A\"}");
 
 
     //Desired Fermentation Percentage 
@@ -146,10 +146,10 @@ void BLEDoughHeight::sendDoughFermPercentData(float doughFermenPercent) {
 
 void BLEDoughHeight::sendStatustData(DoughServcieStatusEnum status) {
 #ifdef DEBUG_BLE
-    Serial.printf("BLE Push Service Status '%d'\n", status);
+    Serial.printf("BLE Push Service Status '%d' ;'%s'\n", status, msg.c_str());
 #endif
-    static char statusCTemp[6];
-    dtostrf(status, 1, 0, statusCTemp);
+    static char statusCTemp[128];
+    snprintf(statusCTemp, sizeof(statusCTemp), "{\"Status\": 0x%X}", status);
     pStatusCharacteristic->setValue(statusCTemp);
     pStatusCharacteristic->notify();
 }
@@ -195,7 +195,7 @@ void FermPercentageCharacteristicCB::onRead(BLECharacteristic *pCharacteristic) 
     
     float percnt = pBleDoughHeight->getDoughFermentationPercent();
 #ifdef DEBUG_BLE
-    Serial.printf("BLE Fermentation Percentage Charachtiristic Read Value: '%f'.\n", percnt);
+    Serial.printf("BLE Fermentation Percentage Charachtiristic Read Value req: '%f'.\n", percnt);
 #endif
     char statusCTemp[10];
     snprintf(statusCTemp, sizeof(statusCTemp), "%f", percnt);
@@ -236,10 +236,14 @@ void StatusCharacteristicCB::onWrite(BLECharacteristic *pCharacteristic) {
 
 void StatusCharacteristicCB::onRead(BLECharacteristic *pCharacteristic) {
 #ifdef DEBUG_BLE
-    Serial.printf("BLE Status Charachtiristic read status: '%d'.\n", pBleDoughHeight->getBleDoughServcieStatus().getDoughServcieStatusEnum());
+    Serial.printf("BLE Status Charachtiristic read Status req: '%d'.\n", pBleDoughHeight->getBleDoughServcieStatus().getDoughServcieStatusEnum());
 #endif
-    char statusCTemp[6];
-    sprintf(statusCTemp, "%d", pBleDoughHeight->getBleDoughServcieStatus().getDoughServcieStatusEnum());
+    char statusCTemp[128];
+    snprintf(statusCTemp, sizeof(statusCTemp),
+        "{\"Status\": 0x%X, \"Message\": \"%s\"}", 
+        pBleDoughHeight->getBleDoughServcieStatus().getDoughServcieStatusEnum(), 
+        pBleDoughHeight->getBleDoughServcieStatus().getDoughServcieStatusMessage().c_str());
+
     pCharacteristic->setValue(statusCTemp);
 }
 
@@ -262,7 +266,7 @@ void DesiredFermPercentageCharacteristicCB::onWrite(BLECharacteristic *pCharacte
 void DesiredFermPercentageCharacteristicCB::onRead(BLECharacteristic *pCharacteristic) {
     
 #ifdef DEBUG_BLE
-    Serial.printf("BLE Desired Fermentation Percentage  Charachtiristic Read Value: '%f'.\n", 
+    Serial.printf("BLE Desired Fermentation Percentage Charachtiristic Read Value req: '%f'.\n", 
         pBleDoughHeight->getBleDoughServcieStatus().getDesiredFermPercentage());
 #endif
     char statusCTemp[6];

@@ -34,6 +34,7 @@ private:
 
   //Service Status
   DoughServcieStatusEnum m_doughServcieStatusEnum = DoughServcieStatusEnum::idle;
+  std::string m_serviceMessage;
 
   //Dough Distance (Height)
   uint8_t m_doughHeight=0;
@@ -45,6 +46,8 @@ private:
 public:
   DoughServcieStatusEnum getDoughServcieStatusEnum() {return m_doughServcieStatusEnum;}
   void setDoughServcieStatusEnum(DoughServcieStatusEnum statusEnum) {m_doughServcieStatusEnum = statusEnum;}
+  void setDoughServcieStatusEnum(DoughServcieStatusEnum statusEnum, std::string msg) {m_doughServcieStatusEnum = statusEnum; m_serviceMessage = msg;}
+  std::string getDoughServcieStatusMessage() {return m_serviceMessage;}
 
   DateTime getFermentationStart() {return m_startFermentationTime;}
   void setFermentationStart(DateTime regTime) {
