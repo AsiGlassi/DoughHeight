@@ -4,6 +4,9 @@ void BLEDoughHeight::initBLE() {
     Serial.println("\nBLE Init");
     BLEDevice::init(DOUGH_DEVICE_NAME);
     pServer = BLEDevice::createServer();
+    uint16_t mtu = 128+3;
+    BLEDevice::setMTU(mtu);
+    // Serial.print("MTU Configured ");Serial.println(BLEDevice::getMTU());
     pServer->setCallbacks(new TheServerCallBacks(this));
     //numHandles = (# of Characteristics)*2 + (# of Services) + (# of Characteristics with BLE2902)
     uint32_t numHandles = 5*2 + 1 + 2;
@@ -78,7 +81,7 @@ void BLEDoughHeight::initBLE() {
     statusRWDescriptor.setValue("Service Status");
     pStatusCharacteristic->addDescriptor(&statusRWDescriptor);
 
-    pStatusCharacteristic->setValue("{\"Status\": 0x0, \"Message\": \"N/A\"}");
+    pStatusCharacteristic->setValue("{\"Status\": 0, \"Message\": \"N/A\"}");
 
 
     //Desired Fermentation Percentage 
@@ -146,10 +149,20 @@ void BLEDoughHeight::sendDoughFermPercentData(float doughFermenPercent) {
 
 void BLEDoughHeight::sendStatustData(DoughServcieStatusEnum status) {
 #ifdef DEBUG_BLE
+    Serial.printf("BLE Push Service Status '%d'\n", status);
+#endif
+    static char statusCTemp[128];
+    snprintf(statusCTemp, sizeof(statusCTemp), "{\"Status\": %d}", status);
+    pStatusCharacteristic->setValue(statusCTemp);
+    pStatusCharacteristic->notify();
+}
+
+void BLEDoughHeight::sendStatustData(DoughServcieStatusEnum status, std::string msg) {
+#ifdef DEBUG_BLE
     Serial.printf("BLE Push Service Status '%d' ;'%s'\n", status, msg.c_str());
 #endif
     static char statusCTemp[128];
-    snprintf(statusCTemp, sizeof(statusCTemp), "{\"Status\": 0x%X}", status);
+    snprintf(statusCTemp, sizeof(statusCTemp), "{\"Status\": %d, \"Message\": \"%s\"}", status, msg.c_str());
     pStatusCharacteristic->setValue(statusCTemp);
     pStatusCharacteristic->notify();
 }
@@ -236,11 +249,13 @@ void StatusCharacteristicCB::onWrite(BLECharacteristic *pCharacteristic) {
 
 void StatusCharacteristicCB::onRead(BLECharacteristic *pCharacteristic) {
 #ifdef DEBUG_BLE
-    Serial.printf("BLE Status Charachtiristic read Status req: '%d'.\n", pBleDoughHeight->getBleDoughServcieStatus().getDoughServcieStatusEnum());
+    Serial.printf("BLE Status Charachtiristic read Status req: %d '%s'.\n", 
+        pBleDoughHeight->getBleDoughServcieStatus().getDoughServcieStatusEnum(),
+        pBleDoughHeight->getBleDoughServcieStatus().getDoughServcieStatusMessage().c_str()));
 #endif
     char statusCTemp[128];
     snprintf(statusCTemp, sizeof(statusCTemp),
-        "{\"Status\": 0x%X, \"Message\": \"%s\"}", 
+        "{\"Status\": %d, \"Message\": \"%s\"}", 
         pBleDoughHeight->getBleDoughServcieStatus().getDoughServcieStatusEnum(), 
         pBleDoughHeight->getBleDoughServcieStatus().getDoughServcieStatusMessage().c_str());
 

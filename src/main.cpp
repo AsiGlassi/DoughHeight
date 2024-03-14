@@ -168,7 +168,7 @@ void readStatus() {
       if (diffInMin < fermentationAgingSpan) {
         //Continue fermentation
         Serial.printf("Continue fermentation.\n");
-        doughServcieStatus.setDoughServcieStatusEnum(DoughServcieStatusEnum::Fermenting);
+        doughServcieStatus.setDoughServcieStatusEnum(DoughServcieStatusEnum::Fermenting, "Start Fermentation");
         doughServcieStatus.setFermentationStart(fermStarted);
         doughServcieStatus.setDoughInitDist(doc["DoughInitDist"]);
         doughServcieStatus.setCupBaseDist(doc["CupBaseDis"]);
@@ -307,7 +307,7 @@ void ErrorHandeling(std::string errorMsg) {
     leds.Error();
 
     //update BLE device status changed
-    xBleDoughHeight.sendStatustData(doughServcieStatus.getDoughServcieStatusEnum());
+    xBleDoughHeight.sendStatustData(doughServcieStatus.getDoughServcieStatusEnum(), errorMsg);
 }
 
 void StartFermentation() {
@@ -394,7 +394,7 @@ void OverFermentation() {
     leds.OverFermentation();
 
     //update BLE device status changed
-    xBleDoughHeight.sendStatustData(doughServcieStatus.getDoughServcieStatusEnum());
+    xBleDoughHeight.sendStatustData(doughServcieStatus.getDoughServcieStatusEnum(), "");
 }
 
 

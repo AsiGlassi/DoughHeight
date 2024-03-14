@@ -3,53 +3,53 @@
 
 #include <RTClib.h>
 
-
 enum DoughServcieStatusEnum {
   idle,
   Connected,
-  Fermenting, 
-  ReachedDesiredFerm, 
+  Fermenting,
+  ReachedDesiredFerm,
   OverFerm,
   Error
 };
 
-
 class DoughServcieStatus {
 
-private:  
-  //Stores the time fermentation started.
+private:
+  // Stores the time fermentation started.
   DateTime m_startFermentationTime;
-  
-  //he dough initial height, represented by distance. 
-  int m_doughInitDist=0;
 
-  //The cup base height, represented by the distance. essential for understand the initiate height of the dough and fermentation calculation..
-  int m_cupBaseDist=0;
+  // he dough initial height, represented by distance.
+  int m_doughInitDist = 0;
 
-  //Desired Fermentation Percentage - What is the desired fermentation amount.
-  float m_desiredFermPercentage=0.40;
+  // The cup base height, represented by the distance. essential for understand the initiate height of the dough and fermentation calculation..
+  int m_cupBaseDist = 0;
 
-  //Fermentation Percentage above the desired fermentation percentage, will be recognized as Over Fermentation Percentage
+  // Desired Fermentation Percentage - What is the desired fermentation amount.
+  float m_desiredFermPercentage = 0.40;
+
+  // Fermentation Percentage above the desired fermentation percentage, will be recognized as Over Fermentation Percentage
   float m_overFermPercentage = 0.07;
 
-  //Service Status
+  // Service Status
   DoughServcieStatusEnum m_doughServcieStatusEnum = DoughServcieStatusEnum::idle;
-  std::string m_serviceMessage;
+  std::string m_serviceMessage = "Idle";
 
-  //Dough Distance (Height)
-  uint8_t m_doughHeight=0;
+  // Dough Distance (Height)
+  uint8_t m_doughHeight = 0;
 
-  //Fermentation Percentage - What is the desired fermentation amount.
-  float m_fermPercentage=0.00;
-
+  // Fermentation Percentage - What is the desired fermentation amount.
+  float m_fermPercentage = 0.00;
 
 public:
-  DoughServcieStatusEnum getDoughServcieStatusEnum() {return m_doughServcieStatusEnum;}
-  void setDoughServcieStatusEnum(DoughServcieStatusEnum statusEnum) {m_doughServcieStatusEnum = statusEnum;}
-  void setDoughServcieStatusEnum(DoughServcieStatusEnum statusEnum, std::string msg) {m_doughServcieStatusEnum = statusEnum; m_serviceMessage = msg;}
-  std::string getDoughServcieStatusMessage() {return m_serviceMessage;}
+  DoughServcieStatusEnum getDoughServcieStatusEnum() { return m_doughServcieStatusEnum; }
+  void setDoughServcieStatusEnum(DoughServcieStatusEnum statusEnum) { m_doughServcieStatusEnum = statusEnum; }
+  void setDoughServcieStatusEnum(DoughServcieStatusEnum statusEnum, std::string msg) {
+    m_doughServcieStatusEnum = statusEnum;
+    m_serviceMessage = msg;
+  }
+  std::string getDoughServcieStatusMessage() { return m_serviceMessage; }
 
-  DateTime getFermentationStart() {return m_startFermentationTime;}
+  DateTime getFermentationStart() { return m_startFermentationTime; }
   void setFermentationStart(DateTime regTime) {
     m_doughServcieStatusEnum = DoughServcieStatusEnum::Fermenting;
     m_startFermentationTime = regTime;
@@ -69,11 +69,11 @@ public:
     m_cupBaseDist = capBaseDist;
   }
 
-  float getDesiredFermPercentage() {return m_desiredFermPercentage;}
-  void setDesiredFermPercentage(float desiredPercentage) {m_desiredFermPercentage = desiredPercentage;}
+  float getDesiredFermPercentage() { return m_desiredFermPercentage; }
+  void setDesiredFermPercentage(float desiredPercentage) { m_desiredFermPercentage = desiredPercentage; }
 
-  float getOverFermPercentage() {return m_overFermPercentage;}
-  void setOverFermPercentage(float overFermPercentage) {m_overFermPercentage = overFermPercentage;}
+  float getOverFermPercentage() { return m_overFermPercentage; }
+  void setOverFermPercentage(float overFermPercentage) { m_overFermPercentage = overFermPercentage; }
 
   uint8_t getDoughHeight() {
     return m_doughHeight;
@@ -82,8 +82,7 @@ public:
     m_doughHeight = doughHeight;
   }
 
-  float getFermPercentage() {return m_fermPercentage;}
-  void setFermPercentage(float fermPercentage) {m_fermPercentage = fermPercentage;}
-
+  float getFermPercentage() { return m_fermPercentage; }
+  void setFermPercentage(float fermPercentage) { m_fermPercentage = fermPercentage; }
 };
 #endif

@@ -69,6 +69,7 @@ public:
     void sendHeightData(uint8_t doughHeight);
     void sendDoughFermPercentData(float doughFermenPercent);
     void sendStatustData(DoughServcieStatusEnum status);
+    void sendStatustData(DoughServcieStatusEnum status, std::string);
 
     void StartFermentation();
     void StopFermentation();
