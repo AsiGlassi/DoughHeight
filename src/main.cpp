@@ -39,7 +39,7 @@ Adafruit_VL53L0X lox = Adafruit_VL53L0X();
 //Dough config
 uint8_t currDoughDist = 0;
 uint8_t defaultDist = 0;
-CircularAvg<int> avgDistance(10, 0);
+CircularAvg<int> avgDistance(6, 0);
 uint8_t currDoughFermPercent = 0;
 int distanseEpsilon = 2;
 int minDoughHeight = 20;
@@ -80,7 +80,7 @@ volatile bool cupPresence = false;
 bool cupPresenceLast = cupPresence;
 
 //interval
-unsigned long sendInterval = 5000;
+unsigned long sendInterval = 1250;//5000
 unsigned long lastSentTime = 0;
 unsigned int fermentationAgingSpan = 8*60;//in minutes 
 
@@ -326,7 +326,7 @@ void StartFermentation() {
       doughServcieStatus.setDoughInitDist(currDoughDist);
 
       //set status
-      doughServcieStatus.setDoughServcieStatusEnum(DoughServcieStatusEnum::Fermenting, "Start Fermentation");
+      doughServcieStatus.setDoughServcieStatusEnum(DoughServcieStatusEnum::Fermenting);
       doughServcieStatus.setFermentationStart(currTime);
 
       //Set Light status
@@ -341,10 +341,10 @@ void StartFermentation() {
 }
 
 void ContFermenting() {
-      // Serial.println("Continue Fermentation Process.");
+      Serial.println("Continue Fermentation Process.");
 
       //set status
-      doughServcieStatus.setDoughServcieStatusEnum(DoughServcieStatusEnum::Fermenting, "Continue Fermentation Process");
+      doughServcieStatus.setDoughServcieStatusEnum(DoughServcieStatusEnum::Fermenting);
 
       //Set Light status
       leds.Fermenting();
@@ -357,7 +357,7 @@ void StopFermentation() {
     Serial.println("Stop Fermentation Process.");
 
     //set status
-    doughServcieStatus.setDoughServcieStatusEnum(DoughServcieStatusEnum::idle, "Stop Fermentation Process");
+    doughServcieStatus.setDoughServcieStatusEnum(DoughServcieStatusEnum::idle);
 
     //Set Light status
     leds.idle();
@@ -370,7 +370,7 @@ void ReachedDesiredFermentation() {
      Serial.println("Reached Desired Fermentation.");
 
     //set status
-    doughServcieStatus.setDoughServcieStatusEnum(DoughServcieStatusEnum::ReachedDesiredFerm, "Reached Desired Fermentation");
+    doughServcieStatus.setDoughServcieStatusEnum(DoughServcieStatusEnum::ReachedDesiredFerm);
 
     //Set Light status
     leds.ReachedDesiredFerm();
@@ -388,13 +388,13 @@ void OverFermentation() {
      Serial.println("Dough Over Fermentating.");
 
     //set status
-    doughServcieStatus.setDoughServcieStatusEnum(DoughServcieStatusEnum::OverFerm, "Dough Over Fermentating");
+    doughServcieStatus.setDoughServcieStatusEnum(DoughServcieStatusEnum::OverFerm);
 
     //Set Light status
     leds.OverFermentation();
 
     //update BLE device status changed
-    xBleDoughHeight.sendStatustData(doughServcieStatus.getDoughServcieStatusEnum(), "");
+    xBleDoughHeight.sendStatustData(doughServcieStatus.getDoughServcieStatusEnum());
 }
 
 
@@ -409,10 +409,22 @@ public:
   }
 
   void onConnect() {
+    Serial.println("Connected To device.");
+
+    //set status
+    doughServcieStatus.setDoughServcieStatusEnum(DoughServcieStatusEnum::Connected);
+
+    //Set Light status
     leds.BleConnected();
   }
 
   void onDisConnect() {
+    Serial.println("DisConnected from device.");
+
+    //set status
+    doughServcieStatus.setDoughServcieStatusEnum(DoughServcieStatusEnum::idle);
+
+    //Set Light status
     leds.BleDisConnected();
   }
 };
