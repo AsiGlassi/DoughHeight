@@ -9,7 +9,7 @@
 #include "DoughServcieStatus.h"
 
 
-// #define DEBUG_BLE true
+#define DEBUG_BLE false
 
 //BLE Dough Height service call back type
 typedef void (*BleDoughServiceCallbackFunction)(void);

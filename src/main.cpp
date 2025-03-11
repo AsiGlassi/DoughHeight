@@ -3,7 +3,7 @@
 
 #include <Arduino.h>
 #include <RTClib.h>
-#include <SPI.h>
+// #include <SPI.h>
 #include <Wire.h>
 
 #include <Adafruit_VL53L0X.h>
@@ -35,6 +35,11 @@ RTC_DS3231 rtc;
 //TOF - Distance measures
 Adafruit_VL53L0X lox = Adafruit_VL53L0X();
 
+//I2C 
+//0x24 - NFC - pn352 (Need Batt)
+//0x29 - Dist - VL53L0X
+//0x57 -  
+//0x68 - Time - DS3231
 
 //Dough config
 uint8_t currDoughDist = 0;
@@ -62,7 +67,7 @@ const char *cupsListFileName = "/Cups.json";
 std::map<std::string, DoughCup> cupsMap;
 
 //pn352 0x24
-#define PN532_IRQ   (32)
+#define PN532_IRQ   (15)
 #define PN532_RESET (4)  // Not connected by default on the NFC Shield
 Adafruit_PN532 nfc(PN532_IRQ, PN532_RESET);
 
@@ -130,7 +135,7 @@ File openFile(const char* filePath) {
     statusFile = SPIFFS.open(filePath);
  
     if(!statusFile) {
-        Serial.println("Failed to open Last Settings file for reading.");
+        Serial.println("Failed to open Last Settings file.");
     }
   }
     return statusFile;
@@ -154,7 +159,7 @@ void readStatus() {
     }
       
     DoughServcieStatusEnum statusFromFile = doc["DoughServcieStatus"].as<DoughServcieStatusEnum>();
-    Serial.printf("Status read from the file: %d\n", statusFromFile);
+    // Serial.printf("Status read from the file: %d\n", statusFromFile);
     if (statusFromFile == DoughServcieStatusEnum::Fermenting) { 
 
       //check fermentation start time
@@ -178,7 +183,7 @@ void readStatus() {
     }
     statusFile.close();
   } else {
-    Serial.println("Failed to open Last Settings for reading.");
+    Serial.println(F("Failed to open Last Settings for reading."));
   }
 }
 
@@ -204,7 +209,7 @@ void saveCups() {
    // StaticJsonDocument<capacity> doc;
   DynamicJsonDocument doc(capacity);
 
-  Serial.print("Cup size save: "); Serial.println(cupsMap.size());
+  Serial.print(PROGMEM "Cup size save: "); Serial.println(cupsMap.size());
   // Set the values in the document
   JsonObject root = doc.to<JsonObject>();
   JsonArray arr = root.createNestedArray("CupList");
@@ -310,6 +315,30 @@ void ErrorHandeling(std::string errorMsg) {
     xBleDoughHeight.sendStatustData(doughServcieStatus.getDoughServcieStatusEnum(), errorMsg);
 }
 
+void ClientConnected() {
+
+    //set status
+    doughServcieStatus.setDoughServcieStatusEnum(DoughServcieStatusEnum::Connected, "Client Connected");
+
+    //Set Light status
+    leds.BleConnected();
+
+    //update BLE device status changed
+    xBleDoughHeight.sendStatustData(doughServcieStatus.getDoughServcieStatusEnum());
+}
+
+void ClientDisConnected() {
+
+    //set status
+    doughServcieStatus.setDoughServcieStatusEnum(DoughServcieStatusEnum::idle, "Client DissConnected");
+
+    //Set Light status
+    leds.idle();
+
+    //update BLE device status changed
+    // xBleDoughHeight.sendStatustData(doughServcieStatus.getDoughServcieStatusEnum());
+}
+
 void StartFermentation() {
     
     if (currDoughDist == 0) {
@@ -357,7 +386,7 @@ void StopFermentation() {
     Serial.println("Stop Fermentation Process.");
 
     //set status
-    doughServcieStatus.setDoughServcieStatusEnum(DoughServcieStatusEnum::idle);
+    doughServcieStatus.setDoughServcieStatusEnum(DoughServcieStatusEnum::Connected, "Stop Fermentation Process");
 
     //Set Light status
     leds.idle();
@@ -409,23 +438,11 @@ public:
   }
 
   void onConnect() {
-    Serial.println("Connected To device.");
-
-    //set status
-    doughServcieStatus.setDoughServcieStatusEnum(DoughServcieStatusEnum::Connected);
-
-    //Set Light status
-    leds.BleConnected();
+    ClientConnected();
   }
 
   void onDisConnect() {
-    Serial.println("DisConnected from device.");
-
-    //set status
-    doughServcieStatus.setDoughServcieStatusEnum(DoughServcieStatusEnum::idle);
-
-    //Set Light status
-    leds.BleDisConnected();
+    ClientDisConnected();
   }
 };
 
@@ -539,7 +556,7 @@ int VL53L0X_Dist() {
   lox.rangingTest(&measure, false); // pass in 'true' to get debug data printout!
 
   if (measure.RangeStatus != 4) {  // phase failures have incorrect data
-    // Serial.print("Distance (mm): "); 
+    Serial.print("Distance (mm): "); 
     Serial.println(measure.RangeMilliMeter);
   } else {
     Serial.println("Distance out of range");

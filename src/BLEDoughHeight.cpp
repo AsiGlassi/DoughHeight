@@ -108,7 +108,7 @@ void BLEDoughHeight::initBLE() {
     pAdvertising->setMinPreferred(0x12);
     BLEDevice::startAdvertising();
     
-    Serial.println("BLE Dough Height Server Started\n");                              
+    Serial.println(F("BLE Dough Height Server Started\n"));  
 }
 
     void BLEDoughHeight::setDeviceConnected(bool conn) {
@@ -222,10 +222,10 @@ void StartCharacteristicCB::onWrite(BLECharacteristic *pCharacteristic) {
     if (rxValue.length() > 0) {
     if (rxValue.length() == 1) {
         if (rxValue[0] == 0x0) {
-            Serial.println("BLE StartStop Charachtiristic received Stop Service Command.");
+            Serial.println(F("BLE StartStop Charachtiristic received Stop Service Command."));
             pBleDoughHeight->StopFermentation();
         } else if (rxValue[0] == 0x1) {
-            Serial.println("BLE StartStop Charachtiristic received Start Service Command.");
+            Serial.println(F("BLE StartStop Charachtiristic received Start Service Command."));
             pBleDoughHeight->StartFermentation();
         } else {
             Serial.printf("BLE StartStop Charachtiristic Received Value: %s\n", rxValue.c_str());
@@ -251,7 +251,7 @@ void StatusCharacteristicCB::onRead(BLECharacteristic *pCharacteristic) {
 #ifdef DEBUG_BLE
     Serial.printf("BLE Status Charachtiristic read Status req: %d '%s'.\n", 
         pBleDoughHeight->getBleDoughServcieStatus().getDoughServcieStatusEnum(),
-        pBleDoughHeight->getBleDoughServcieStatus().getDoughServcieStatusMessage().c_str()));
+        pBleDoughHeight->getBleDoughServcieStatus().getDoughServcieStatusMessage().c_str());
 #endif
     char statusCTemp[128];
     snprintf(statusCTemp, sizeof(statusCTemp),
