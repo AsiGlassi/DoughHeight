@@ -9,7 +9,7 @@
 #include "DoughServcieStatus.h"
 
 
-#define DEBUG_BLE false
+//#define DEBUG_BLE false
 
 //BLE Dough Height service call back type
 typedef void (*BleDoughServiceCallbackFunction)(void);
@@ -61,7 +61,7 @@ public:
     void initBLE();
 
     void setDeviceConnected(bool conn);
-    bool isDeviceConnected();
+    bool isClientDeviceConnected();
 
     DoughServcieStatus getBleDoughServcieStatus() {return *bleDoughServcieStatus;}
 

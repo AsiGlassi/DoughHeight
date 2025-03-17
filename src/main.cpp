@@ -1,4 +1,4 @@
-#define LOG_LOCAL_LEVEL ESP_LOG_VERBOSE
+#define LOG_LOCAL_LEVEL ESP_LOG_INFO
 #include <esp_log.h>
 
 #include <Arduino.h>
@@ -317,14 +317,8 @@ void ErrorHandeling(std::string errorMsg) {
 
 void ClientConnected() {
 
-    //set status
-    doughServcieStatus.setDoughServcieStatusEnum(DoughServcieStatusEnum::Connected, "Client Connected");
-
     //Set Light status
     leds.BleConnected();
-
-    //update BLE device status changed
-    xBleDoughHeight.sendStatustData(doughServcieStatus.getDoughServcieStatusEnum());
 }
 
 void ClientDisConnected() {
@@ -386,10 +380,14 @@ void StopFermentation() {
     Serial.println("Stop Fermentation Process.");
 
     //set status
-    doughServcieStatus.setDoughServcieStatusEnum(DoughServcieStatusEnum::Connected, "Stop Fermentation Process");
+    doughServcieStatus.setDoughServcieStatusEnum(DoughServcieStatusEnum::idle, "Stop Fermentation Process");
 
     //Set Light status
-    leds.idle();
+    if (xBleDoughHeight.isClientDeviceConnected()) {
+      leds.BleConnected();
+    } else {
+      leds.idle();
+    }
 
     //update BLE device status changed
     xBleDoughHeight.sendStatustData(doughServcieStatus.getDoughServcieStatusEnum());

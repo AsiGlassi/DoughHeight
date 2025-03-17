@@ -14,7 +14,7 @@ void LedDough::idle() {
  }
 
 void LedDough::BleConnected() {
-    SetFillColor(colors[DoughServcieStatusEnum::Connected]);
+    SetFillColor(clientConnectedcolor);
 }
 
 void LedDough::BleDisConnected() {

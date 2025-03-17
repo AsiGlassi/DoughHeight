@@ -123,11 +123,12 @@ void BLEDoughHeight::initBLE() {
     }
 
 
-bool BLEDoughHeight::isDeviceConnected() {
+bool BLEDoughHeight::isClientDeviceConnected() {
        return deviceConnected;
 }
 
 void BLEDoughHeight::sendHeightData(uint8_t doughHeight) {
+    if (!deviceConnected) return;
 #ifdef DEBUG_BLE
     Serial.printf("BLE Push dought height '%d'\n", doughHeight);
 #endif
@@ -138,6 +139,7 @@ void BLEDoughHeight::sendHeightData(uint8_t doughHeight) {
 }
 
 void BLEDoughHeight::sendDoughFermPercentData(float doughFermenPercent) {
+    if (!deviceConnected) return;
 #ifdef DEBUG_BLE
     Serial.printf("BLE Push dought Fermentation Percentage '%f'\n", doughFermenPercent);
 #endif
@@ -148,6 +150,7 @@ void BLEDoughHeight::sendDoughFermPercentData(float doughFermenPercent) {
 }
 
 void BLEDoughHeight::sendStatustData(DoughServcieStatusEnum status) {
+    if (!deviceConnected) return;
 #ifdef DEBUG_BLE
     Serial.printf("BLE Push Service Status '%d'\n", status);
 #endif
@@ -158,6 +161,7 @@ void BLEDoughHeight::sendStatustData(DoughServcieStatusEnum status) {
 }
 
 void BLEDoughHeight::sendStatustData(DoughServcieStatusEnum status, std::string msg) {
+    if (!deviceConnected) return;
 #ifdef DEBUG_BLE
     Serial.printf("BLE Push Service Status '%d' ;'%s'\n", status, msg.c_str());
 #endif

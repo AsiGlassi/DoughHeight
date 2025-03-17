@@ -5,7 +5,7 @@
 
 enum DoughServcieStatusEnum {
   idle,
-  Connected,
+  //Connected, it doesnt matter if there is a client connected except
   Fermenting,
   ReachedDesiredFerm,
   OverFerm,
