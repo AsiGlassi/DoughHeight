@@ -334,8 +334,9 @@ void ClientDisConnected() {
 }
 
 void StartFermentation() {
-    
-    if (currDoughDist == 0) {
+    /*if (!cupPresence) {
+      ErrorHandeling("Cant start process, Cup Not Pressent");
+    } else */ if (currDoughDist == 0) {
       ErrorHandeling("Cant start process, Distance = 0.");
     } else if (abs(currDoughDist - doughServcieStatus.getCupBaseDist()) < minDoughHeight) {
       ErrorHandeling("Cant start process, Dough level is too low.");
@@ -554,8 +555,8 @@ int VL53L0X_Dist() {
   lox.rangingTest(&measure, false); // pass in 'true' to get debug data printout!
 
   if (measure.RangeStatus != 4) {  // phase failures have incorrect data
-    Serial.print("Distance (mm): "); 
-    Serial.println(measure.RangeMilliMeter);
+    // Serial.print("Distance (mm): "); 
+    // Serial.println(measure.RangeMilliMeter);
   } else {
     Serial.println("Distance out of range");
   }
@@ -617,6 +618,8 @@ void setup() {
   }  
 
   //cup interupt
+  cupPresence = !digitalRead(CUP_PRESENCE_IRQ);
+  cupPresenceLast = cupPresence;
   attachInterrupt(digitalPinToInterrupt(CUP_PRESENCE_IRQ), CupStatusChangedInt, CHANGE); 
   //Begin timer with 1 MHz frequency - 11 tick take 1/(80MHZ/80) = 1us
   cupPresenceTimer = timerBegin(0, (getApbFrequency()/1000000), true);
@@ -697,12 +700,17 @@ void loop() {
     }
   }
   
-  if (xBleDoughHeight.isDeviceConnected()) {
+  if (xBleDoughHeight.isClientDeviceConnected()) {
     
     unsigned long now = millis();
     if ((now - lastSentTime) > sendInterval) {
 
       lastSentTime = now;
+
+	    if (!cupPresence) {
+	      ErrorHandeling("Cup Not Pressent");
+	    }// else { //Todo - Temporary
+
       // Get Distance and report in mm
       uint8_t tmpDist = VL53L0X_Dist();
       avgDistance.Insert(tmpDist);
