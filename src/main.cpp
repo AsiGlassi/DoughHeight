@@ -343,8 +343,8 @@ void StartFermentation() {
     } else {
       DateTime currTime = rtc.now();
       char strFormat[] = "MM-DD-YYYYThh:mm:ss";
-      Serial.print("Start Fermentation Process: ");Serial.print(currTime.toString(strFormat));
-      Serial.print("\tInitialize Dough Distance: "); Serial.println(currDoughDist);
+      Serial.printf("Start Fermentation Process: %s \tInitialize Dough Distance: %d\n", 
+        currTime.toString(strFormat), currDoughDist);
       
       //set init distance 
       doughServcieStatus.setDoughInitDist(currDoughDist);
@@ -709,45 +709,46 @@ void loop() {
 
 	    if (!cupPresence) {
 	      ErrorHandeling("Cup Not Pressent");
-	    }// else { //Todo - Temporary
+	    } else {
 
-      // Get Distance and report in mm
-      uint8_t tmpDist = VL53L0X_Dist();
-      avgDistance.Insert(tmpDist);
-      currDoughDist = (uint8_t)avgDistance.Avg();
+        // Get Distance and report in mm
+        uint8_t tmpDist = VL53L0X_Dist();
+        avgDistance.Insert(tmpDist);
+        currDoughDist = (uint8_t)avgDistance.Avg();
 
-      
-      if ((doughServcieStatus.getDoughServcieStatusEnum() == DoughServcieStatusEnum::Fermenting) ||
-        (doughServcieStatus.getDoughServcieStatusEnum() == DoughServcieStatusEnum::ReachedDesiredFerm)|| 
-        (doughServcieStatus.getDoughServcieStatusEnum() == DoughServcieStatusEnum::OverFerm)) {
-
-        //broadcast heightv & Percentage
-        int initDist = doughServcieStatus.getDoughInitDist();
-        int baseDist = doughServcieStatus.getCupBaseDist();
         
-        float fermPercent = (initDist - currDoughDist)/(float)(baseDist - initDist);
-        // Serial.printf("Dough Fermentation BaseDist:%d InitDist:%d currDist:%d = %f2%%\n", baseDist, initDist, currDoughDist, fermPercent*100);
-        Serial.printf("Dough Fermentation Base Height:%d Init Dough Height:%d Current Ferm Height:%d = %2f%%\n", 
-                      floorDist - baseDist, baseDist - initDist, initDist - currDoughDist, fermPercent*100);
+        if ((doughServcieStatus.getDoughServcieStatusEnum() == DoughServcieStatusEnum::Fermenting) ||
+          (doughServcieStatus.getDoughServcieStatusEnum() == DoughServcieStatusEnum::ReachedDesiredFerm)|| 
+          (doughServcieStatus.getDoughServcieStatusEnum() == DoughServcieStatusEnum::OverFerm)) {
 
-        doughServcieStatus.setDoughHeight(currDoughDist);
-        xBleDoughHeight.sendHeightData(currDoughDist);
-        doughServcieStatus.setFermPercentage(fermPercent);
-        xBleDoughHeight.sendDoughFermPercentData(fermPercent);
+          //broadcast heightv & Percentage
+          int initDist = doughServcieStatus.getDoughInitDist();
+          int baseDist = doughServcieStatus.getCupBaseDist();
+          
+          float fermPercent = (initDist - currDoughDist)/(float)(baseDist - initDist);
+          // Serial.printf("Dough Fermentation BaseDist:%d InitDist:%d currDist:%d = %f2%%\n", baseDist, initDist, currDoughDist, fermPercent*100);
+          Serial.printf("Dough Fermentation Base Height:%d Init Dough Height:%d Current Ferm Height:%d = %2f%%\n", 
+                        floorDist - baseDist, baseDist - initDist, initDist - currDoughDist, fermPercent*100);
+
+          doughServcieStatus.setDoughHeight(currDoughDist);
+          xBleDoughHeight.sendHeightData(currDoughDist);
+          doughServcieStatus.setFermPercentage(fermPercent);
+          xBleDoughHeight.sendDoughFermPercentData(fermPercent);
 
 
-        //check if reached desired fermentation status
-        float desiredPercentage = doughServcieStatus.getDesiredFermPercentage();
-        if (fermPercent > (desiredPercentage + doughServcieStatus.getOverFermPercentage())) {
-          OverFermentation();
-        } else if (fermPercent > desiredPercentage) {
-          ReachedDesiredFermentation();
+          //check if reached desired fermentation status
+          float desiredPercentage = doughServcieStatus.getDesiredFermPercentage();
+          if (fermPercent > (desiredPercentage + doughServcieStatus.getOverFermPercentage())) {
+            OverFermentation();
+          } else if (fermPercent > desiredPercentage) {
+            ReachedDesiredFermentation();
+          } else {
+            ContFermenting();
+          }
         } else {
-          ContFermenting();
+          Serial.printf("Distance measured = %2d (%d) mm.\t Height = %2d\n", currDoughDist, tmpDist, floorDist - currDoughDist);
+          // avgDistance.printDebug();
         }
-      } else {
-        Serial.printf("Distance measured = %2d (%d) mm.\t Height = %2d\n", currDoughDist, tmpDist, floorDist - currDoughDist);
-        // avgDistance.printDebug();
       }
     }
   }
