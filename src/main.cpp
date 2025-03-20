@@ -120,7 +120,10 @@ void saveStatus() {
 
   // Serialize JSON to file
   if (serializeJson(doc, file) == 0) {
-    Serial.println(F("Failed to write Last Settings file."));
+    Serial.println(F("Failed to write last Status file."));
+  } else {
+    Serial.println(F("Saved last Status file."));
+
   }
 
   // Close the file
@@ -334,9 +337,9 @@ void ClientDisConnected() {
 }
 
 void StartFermentation() {
-    /*if (!cupPresence) {
+    if (!cupPresence) {
       ErrorHandeling("Cant start process, Cup Not Pressent");
-    } else */ if (currDoughDist == 0) {
+    } else if (currDoughDist == 0) {
       ErrorHandeling("Cant start process, Distance = 0.");
     } else if (abs(currDoughDist - doughServcieStatus.getCupBaseDist()) < minDoughHeight) {
       ErrorHandeling("Cant start process, Dough level is too low.");
@@ -638,16 +641,15 @@ void setup() {
     Serial.println("An Error has occurred while mounting SPIFFS");
     Serial.flush();
     delay(3000);
-    // abort();
+    abort();
   }
 
   //Read Service status 
-  //readStatus();
+  readStatus(); 
 
   //read cup files
   readCups();
-  Serial.print("Cup size:");
-  Serial.println(cupsMap.size());
+  Serial.printf("Cup size: %d\n", cupsMap.size());
   // for (std::pair<std::string, DoughCup> element : cupsMap) {
   //     Serial.print(element.first.c_str());
   //     Serial.print(": ");
@@ -727,7 +729,7 @@ void loop() {
           
           float fermPercent = (initDist - currDoughDist)/(float)(baseDist - initDist);
           // Serial.printf("Dough Fermentation BaseDist:%d InitDist:%d currDist:%d = %f2%%\n", baseDist, initDist, currDoughDist, fermPercent*100);
-          Serial.printf("Dough Fermentation Base Height:%d Init Dough Height:%d Current Ferm Height:%d = %2f%%\n", 
+          Serial.printf("Dough Fermentation Base Height:%d \tInit Dough Height:%d \tCurrent Ferm Height:%d = %2f%%\n", 
                         floorDist - baseDist, baseDist - initDist, initDist - currDoughDist, fermPercent*100);
 
           doughServcieStatus.setDoughHeight(currDoughDist);
