@@ -83,6 +83,8 @@ volatile bool cardReadWaiting = false;
 hw_timer_t * cupPresenceTimer = NULL; 
 volatile bool cupPresence = false;
 bool cupPresenceLast = cupPresence;
+bool encounteredCupError = false;
+
 
 //interval
 unsigned long sendInterval = 1250;//5000
@@ -288,20 +290,18 @@ void readCups() {
   }
 }
 
-void listDir(){
+void listDir() {
  
   File root = SPIFFS.open("/");
- 
   File file = root.openNextFile();
  
-  while(file){
+  while(file) {
  
       Serial.print("FILE: ");
       Serial.println(file.name());
  
       file = root.openNextFile();
-  }
- 
+  } 
 }
 
 
@@ -318,114 +318,130 @@ void ErrorHandeling(std::string errorMsg) {
     xBleDoughHeight.sendStatustData(doughServcieStatus.getDoughServcieStatusEnum(), errorMsg);
 }
 
+void ClientIdle() {
+
+  //set status
+  doughServcieStatus.setDoughServcieStatusEnum(DoughServcieStatusEnum::idle);
+
+  //Set Light status
+  if (xBleDoughHeight.isClientDeviceConnected()) {
+    leds.BleConnected();
+  } else {
+    leds.idle();
+  }
+
+  //update BLE device status changed
+  xBleDoughHeight.sendStatustData(doughServcieStatus.getDoughServcieStatusEnum());
+}
+
 void ClientConnected() {
 
-    //Set Light status
-    leds.BleConnected();
+  //Set Light status
+  leds.BleConnected();
 }
 
 void ClientDisConnected() {
 
-    //set status
-    doughServcieStatus.setDoughServcieStatusEnum(DoughServcieStatusEnum::idle, "Client DissConnected");
+  //set status
+  doughServcieStatus.setDoughServcieStatusEnum(DoughServcieStatusEnum::idle, "Client DissConnected");
 
-    //Set Light status
-    leds.idle();
+  //Set Light status
+  leds.idle();
 
-    //update BLE device status changed
-    // xBleDoughHeight.sendStatustData(doughServcieStatus.getDoughServcieStatusEnum());
+  //update BLE device status changed
+  // xBleDoughHeight.sendStatustData(doughServcieStatus.getDoughServcieStatusEnum());
 }
 
 void StartFermentation() {
-    if (!cupPresence) {
-      ErrorHandeling("Cant start process, Cup Not Pressent");
-    } else if (currDoughDist == 0) {
-      ErrorHandeling("Cant start process, Distance = 0.");
-    } else if (abs(currDoughDist - doughServcieStatus.getCupBaseDist()) < minDoughHeight) {
-      ErrorHandeling("Cant start process, Dough level is too low.");
-    } else {
-      DateTime currTime = rtc.now();
-      char strFormat[] = "MM-DD-YYYYThh:mm:ss";
-      Serial.printf("Start Fermentation Process: %s \tInitialize Dough Distance: %d\n", 
-        currTime.toString(strFormat), currDoughDist);
-      
-      //set init distance 
-      doughServcieStatus.setDoughInitDist(currDoughDist);
+  if (!cupPresence) {
+    ErrorHandeling("Cant start process, Cup Not Pressent");
+  } else if (currDoughDist == 0) {
+    ErrorHandeling("Cant start process, Distance = 0.");
+  } else if (abs(currDoughDist - doughServcieStatus.getCupBaseDist()) < minDoughHeight) {
+    ErrorHandeling("Cant start process, Dough level is too low.");
+  } else {
+    DateTime currTime = rtc.now();
+    char strFormat[] = "MM-DD-YYYYThh:mm:ss";
+    Serial.printf("Start Fermentation Process: %s \tInitialize Dough Distance: %d\n", 
+      currTime.toString(strFormat), currDoughDist);
+    
+    //set init distance 
+    doughServcieStatus.setDoughInitDist(currDoughDist);
 
-      //set status
-      doughServcieStatus.setDoughServcieStatusEnum(DoughServcieStatusEnum::Fermenting);
-      doughServcieStatus.setFermentationStart(currTime);
+    //set status
+    doughServcieStatus.setDoughServcieStatusEnum(DoughServcieStatusEnum::Fermenting);
+    doughServcieStatus.setFermentationStart(currTime);
 
-      //Set Light status
-      leds.Fermenting();
+    //Set Light status
+    leds.Fermenting();
 
-      //update BLE device status changed
-      xBleDoughHeight.sendStatustData(doughServcieStatus.getDoughServcieStatusEnum());
+    //update BLE device status changed
+    xBleDoughHeight.sendStatustData(doughServcieStatus.getDoughServcieStatusEnum());
 
-      //save service status iin case the system restart
-      saveStatus();
-    }
+    //save service status iin case the system restart
+    saveStatus();
+  }
 }
 
 void ContFermenting() {
-      Serial.println("Continue Fermentation Process.");
+  Serial.println(F("Continue Fermentation Process."));
 
-      //set status
-      doughServcieStatus.setDoughServcieStatusEnum(DoughServcieStatusEnum::Fermenting);
+  //set status
+  doughServcieStatus.setDoughServcieStatusEnum(DoughServcieStatusEnum::Fermenting);
 
-      //Set Light status
-      leds.Fermenting();
+  //Set Light status
+  leds.Fermenting();
 
-      //update BLE device status changed
-      xBleDoughHeight.sendStatustData(doughServcieStatus.getDoughServcieStatusEnum());
+  //update BLE device status changed
+  xBleDoughHeight.sendStatustData(doughServcieStatus.getDoughServcieStatusEnum());
 }
 
 void StopFermentation() {
-    Serial.println("Stop Fermentation Process.");
+  Serial.println(F("Stop Fermentation Process."));
 
-    //set status
-    doughServcieStatus.setDoughServcieStatusEnum(DoughServcieStatusEnum::idle, "Stop Fermentation Process");
+  //set status
+  doughServcieStatus.setDoughServcieStatusEnum(DoughServcieStatusEnum::idle, "Stop Fermentation Process");
 
-    //Set Light status
-    if (xBleDoughHeight.isClientDeviceConnected()) {
-      leds.BleConnected();
-    } else {
-      leds.idle();
-    }
+  //Set Light status
+  if (xBleDoughHeight.isClientDeviceConnected()) {
+    leds.BleConnected();
+  } else {
+    leds.idle();
+  }
 
-    //update BLE device status changed
-    xBleDoughHeight.sendStatustData(doughServcieStatus.getDoughServcieStatusEnum());
+  //update BLE device status changed
+  xBleDoughHeight.sendStatustData(doughServcieStatus.getDoughServcieStatusEnum());
 }
 
 void ReachedDesiredFermentation() {
-     Serial.println("Reached Desired Fermentation.");
+    Serial.println(F("Reached Desired Fermentation."));
 
-    //set status
-    doughServcieStatus.setDoughServcieStatusEnum(DoughServcieStatusEnum::ReachedDesiredFerm);
+  //set status
+  doughServcieStatus.setDoughServcieStatusEnum(DoughServcieStatusEnum::ReachedDesiredFerm);
 
-    //Set Light status
-    leds.ReachedDesiredFerm();
+  //Set Light status
+  leds.ReachedDesiredFerm();
 
-    //update BLE device status changed
-    xBleDoughHeight.sendStatustData(doughServcieStatus.getDoughServcieStatusEnum());
+  //update BLE device status changed
+  xBleDoughHeight.sendStatustData(doughServcieStatus.getDoughServcieStatusEnum());
 
-    //Make some sounds for
-    digitalWrite(BUZZ_PIN, HIGH);
-    delay(1250);
-    digitalWrite(BUZZ_PIN, LOW);
+  //Make some sounds for
+  digitalWrite(BUZZ_PIN, HIGH);
+  delay(1250);
+  digitalWrite(BUZZ_PIN, LOW);
 }
 
 void OverFermentation() {
-     Serial.println("Dough Over Fermentating.");
+    Serial.println("Dough Over Fermentating.");
 
-    //set status
-    doughServcieStatus.setDoughServcieStatusEnum(DoughServcieStatusEnum::OverFerm);
+  //set status
+  doughServcieStatus.setDoughServcieStatusEnum(DoughServcieStatusEnum::OverFerm);
 
-    //Set Light status
-    leds.OverFermentation();
+  //Set Light status
+  leds.OverFermentation();
 
-    //update BLE device status changed
-    xBleDoughHeight.sendStatustData(doughServcieStatus.getDoughServcieStatusEnum());
+  //update BLE device status changed
+  xBleDoughHeight.sendStatustData(doughServcieStatus.getDoughServcieStatusEnum());
 }
 
 
@@ -709,9 +725,32 @@ void loop() {
 
       lastSentTime = now;
 
+      DoughServcieStatusEnum statusBeforeCupError;
 	    if (!cupPresence) {
+        encounteredCupError = true;
+        statusBeforeCupError = doughServcieStatus.getDoughServcieStatusEnum();
 	      ErrorHandeling("Cup Not Pressent");
 	    } else {
+        if (encounteredCupError) {
+          encounteredCupError = false;
+          //cup restored, restore latest status
+          Serial.printf("Recovered from Cup Error restore status %d\n", statusBeforeCupError);
+          switch (statusBeforeCupError) {
+          case DoughServcieStatusEnum::idle:
+            ClientIdle();
+            break;
+          case DoughServcieStatusEnum::Fermenting: 
+            ContFermenting(); 
+            break;
+          case DoughServcieStatusEnum::OverFerm:
+            OverFermentation();
+            break;
+          case DoughServcieStatusEnum::ReachedDesiredFerm: 
+            ReachedDesiredFermentation();
+            break;
+          };
+        }
+      
 
         // Get Distance and report in mm
         uint8_t tmpDist = VL53L0X_Dist();
