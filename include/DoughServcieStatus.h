@@ -25,7 +25,7 @@ private:
   int m_cupBaseDist = 0;
 
   // Desired Fermentation Percentage - What is the desired fermentation amount.
-  float m_desiredFermPercentage = 0.40;
+  float m_desiredFermPercentage = 0.10;
 
   // Fermentation Percentage above the desired fermentation percentage, will be recognized as Over Fermentation Percentage
   float m_overFermPercentage = 0.07;

@@ -87,10 +87,23 @@ bool encounteredCupError = false;
 
 
 //interval
-unsigned long sendInterval = 1250;//5000
+unsigned long sendInterval = 2250;//5000
 unsigned long lastSentTime = 0;
-unsigned int fermentationAgingSpan = 8*60;//in minutes 
+unsigned int fermentationAgingSpan = (4*60)*60;//in minutes XH = 4*60*60
 
+
+//Parse Date standard ISO 8601-like format
+DateTime ParseDateTime(const char* timestampStr) {
+  int year, month, day, hour, minute, second;
+
+  // Extract date and time components from the string
+  if (sscanf(timestampStr, "%d-%d-%d %d:%d:%d", &year, &month, &day, &hour, &minute, &second) == 6) {
+      return DateTime(year, month, day, hour, minute, second);
+  } else {
+      Serial.println("Failed to parse timestamp!");
+      return DateTime(); // Return an invalid DateTime
+  }
+}
 
 // Saves Dough Service Startus to a file
 void saveStatus() {
@@ -114,7 +127,7 @@ void saveStatus() {
 
   // Set the values in the document
   doc["DoughServcieStatus"] = doughServcieStatus.getDoughServcieStatusEnum();
-  char strFormat[] = "MM-DD-YYYYThh:mm:ss";
+  char strFormat[] = "YYYY-MM-DD hh:mm:ss";
   DateTime startTime = doughServcieStatus.getFermentationStart();
   doc["FermentationStart"] = startTime.toString(strFormat);
   doc["DoughInitDist"] = doughServcieStatus.getDoughInitDist();
@@ -169,7 +182,7 @@ void readStatus() {
 
       //check fermentation start time
       const char* fileDateStr = doc["FermentationStart"].as<const char*>();
-      DateTime fermStarted = DateTime(fileDateStr);
+      DateTime fermStarted = ParseDateTime(fileDateStr);
       TimeSpan startedBefore = (rtc.now() - fermStarted);
       unsigned int diffInMin = startedBefore.totalseconds()/60;
       Serial.printf("Last operation stopped during fermentation at %s - %d min ago.\n", 
@@ -361,7 +374,7 @@ void StartFermentation() {
     ErrorHandeling("Cant start process, Dough level is too low.");
   } else {
     DateTime currTime = rtc.now();
-    char strFormat[] = "MM-DD-YYYYThh:mm:ss";
+    char strFormat[] = "YYYY-MM-DD hh:mm:ss";
     Serial.printf("Start Fermentation Process: %s \tInitialize Dough Distance: %d\n", 
       currTime.toString(strFormat), currDoughDist);
     
