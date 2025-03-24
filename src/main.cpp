@@ -89,7 +89,7 @@ bool encounteredCupError = false;
 //interval
 unsigned long sendInterval = 2250;//5000
 unsigned long lastSentTime = 0;
-unsigned int fermentationAgingSpan = (4*60)*60;//in minutes XH = 4*60*60
+unsigned int fermentationAgingSpan = (4*60);//in minutes 
 
 
 //Parse Date standard ISO 8601-like format
@@ -350,19 +350,19 @@ void ClientIdle() {
 void ClientConnected() {
 
   //Set Light status
-  leds.BleConnected();
+  DoughServcieStatusEnum currStatus = doughServcieStatus.getDoughServcieStatusEnum();
+  if (currStatus == DoughServcieStatusEnum::idle) {
+    leds.BleConnected();
+  }
 }
 
 void ClientDisConnected() {
 
-  //set status
-  doughServcieStatus.setDoughServcieStatusEnum(DoughServcieStatusEnum::idle, "Client DissConnected");
-
   //Set Light status
-  leds.idle();
-
-  //update BLE device status changed
-  // xBleDoughHeight.sendStatustData(doughServcieStatus.getDoughServcieStatusEnum());
+  DoughServcieStatusEnum currStatus = doughServcieStatus.getDoughServcieStatusEnum();
+  if (currStatus == DoughServcieStatusEnum::idle) {
+    leds.idle();
+  }
 }
 
 void StartFermentation() {
@@ -742,6 +742,7 @@ void loop() {
 	    if (!cupPresence) {
         encounteredCupError = true;
         statusBeforeCupError = doughServcieStatus.getDoughServcieStatusEnum();
+        Serial.printf("Cup Error, Save current status %d\n", statusBeforeCupError);
 	      ErrorHandeling("Cup Not Pressent");
 	    } else {
         if (encounteredCupError) {
