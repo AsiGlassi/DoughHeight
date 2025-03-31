@@ -78,6 +78,45 @@ public:
 
 
 
+class DeviceSecurityCallbacks : public BLESecurityCallbacks {
+
+    //BLEDoughHeight* pBleDoughHeight;
+
+public:
+    // DeviceSecurityCallbacks(BLEDoughHeight* pinDoughHeight) {
+    //     pBleDoughHeight = pinDoughHeight;
+    // }
+    // DeviceSecurityCallbacks(){Serial.println(x);}
+
+    virtual bool onConfirmPIN(uint32_t pin) {
+        Serial.println("Confirming PIN: " + String(pin));
+        return true;
+    };
+
+    virtual uint32_t onPassKeyRequest() {
+        uint32_t passKey = 123456;
+        Serial.printf("Passkey request, providing static passkey %d...", passKey);
+        return passKey;  // Static passkey
+    }
+
+    virtual void onPassKeyNotify(uint32_t passkey) {
+        Serial.println("Passkey: " + String(passkey));
+    };
+
+    virtual bool onSecurityRequest() {
+        return true;
+    };
+
+    void onAuthenticationComplete(esp_ble_auth_cmpl_t cmpl) {
+        if (cmpl.success) {
+            Serial.println("Bonding successful!");
+        } else {
+            Serial.println("Bonding failed!");
+        }
+    };
+};
+
+
 class TheServerCallBacks: public BLEServerCallbacks { 
 
     BLEDoughHeight* pBleDoughHeight;

@@ -3,10 +3,21 @@
 void BLEDoughHeight::initBLE() {
     Serial.println("\nBLE Init");
     BLEDevice::init(DOUGH_DEVICE_NAME);
+    
+    //Increace Security level //Todo - I havent tested it with new device
+    BLEDevice::setSecurityCallbacks(new DeviceSecurityCallbacks());
+    BLEDevice::setEncryptionLevel(ESP_BLE_SEC_ENCRYPT_MITM); 
+    BLESecurity* pSecurity = new BLESecurity();
+    pSecurity->setAuthenticationMode(ESP_LE_AUTH_REQ_SC_MITM_BOND);  // Require MITM with secure connections
+    // pSecurity->setCapability(ESP_IO_CAP_IO);  // Requires passkey or numeric comparison
+    // pSecurity->setStaticPIN(123456);          // Set static passkey
+    pSecurity->setInitEncryptionKey(ESP_BLE_ENC_KEY_MASK | ESP_BLE_ID_KEY_MASK);
+
     pServer = BLEDevice::createServer();
     uint16_t mtu = 128+3;
     BLEDevice::setMTU(mtu);
     // Serial.print("MTU Configured ");Serial.println(BLEDevice::getMTU());
+
     pServer->setCallbacks(new TheServerCallBacks(this));
     //numHandles = (# of Characteristics)*2 + (# of Services) + (# of Characteristics with BLE2902)
     uint32_t numHandles = 5*2 + 1 + 2;
