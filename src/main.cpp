@@ -44,7 +44,7 @@ Adafruit_VL53L0X lox = Adafruit_VL53L0X();
 //Dough config
 uint8_t currDoughDist = 0;
 uint8_t defaultDist = 0;
-CircularAvg<int> avgDistance(6, 0);
+CircularAvg<int> avgDistance(4, 0);
 uint8_t currDoughFermPercent = 0;
 int distanseEpsilon = 2;
 int minDoughHeight = 20;
@@ -641,6 +641,8 @@ void setup() {
   
   //Start TOF Sensor
   Setup_VL53L0X();
+  uint8_t tmpDist = VL53L0X_Dist();
+  avgDistance.SetAll(tmpDist);
 
   //Start NFC
   if (!nfcConnect()) {
@@ -801,7 +803,7 @@ void loop() {
             ContFermenting();
           }
         } else {
-          Serial.printf("Distance measured = %2d (%d) mm.\t Height = %2d\n", currDoughDist, tmpDist, floorDist - currDoughDist);
+          Serial.printf("Distance measured = %2d (%d) mm.\t Height = %2d (%d)\n", currDoughDist, tmpDist, floorDist - currDoughDist, floorDist - tmpDist);
           // avgDistance.printDebug();
         }
       }

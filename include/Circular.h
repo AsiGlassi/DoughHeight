@@ -23,7 +23,8 @@ public:
  
     T GetLastItem() {return itemArray[pointer];};
     T GetNextItem();
-    virtual void Insert(T value); 
+    virtual void Insert(T value);
+    void SetAll(T value); 
     virtual void printDebug();
     bool BufferFull() {return numOfItems >= arrayLen;}
 };

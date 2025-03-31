@@ -33,6 +33,12 @@ void Circular<T>::Insert(T value) {
     itemArray[pointer] = value;
 }
 
+template<class T>
+void Circular<T>::SetAll(T value) {
+    for (byte i = 0; i < arrayLen; i++) {
+        itemArray[i] = value;
+    }
+}
 
  template<class T>
  void Circular<T>::NextPointer() {
