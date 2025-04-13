@@ -28,6 +28,19 @@ float CircularAvg<T>::Avg() {
     }
 };
 
+template<class T>
+float CircularAvg<T>::Stdev() {
+
+    float avg = Avg();
+    int varient = 0;
+    
+    for (byte i = 0; i < Circular<T>::arrayLen; i++) {
+        varient += std::pow((Circular<T>::itemArray[i] - avg), 2);
+    }
+    float stDev = std::sqrt(varient);
+    return stDev;
+};
+
 template <class T>
 void CircularAvg<T>::printDebug() {
     Serial.print("Array: ");

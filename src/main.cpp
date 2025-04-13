@@ -85,9 +85,10 @@ volatile bool cupPresence = false;
 bool cupPresenceLast = cupPresence;
 bool encounteredCupError = false;
 
-
 //interval
-unsigned long sendInterval = 2250;//5000
+unsigned long sendIntervalLow = 2250; //5000
+unsigned long sendInterval = sendIntervalLow;
+unsigned long sendIntervalHigh = sendIntervalLow/4;
 unsigned long lastSentTime = 0;
 unsigned int fermentationAgingSpan = (4*60);//in minutes 
 
@@ -104,6 +105,13 @@ DateTime ParseDateTime(const char* timestampStr) {
       return DateTime(); // Return an invalid DateTime
   }
 }
+
+bool isReadingStable() {
+  float deviation = avgDistance.Stdev();
+  // Serial.printf("Reading deviation: %2f%\n", deviation);
+  return (deviation <= 1.25);
+}
+
 
 // Saves Dough Service Startus to a file
 void saveStatus() {
@@ -373,6 +381,13 @@ void StartFermentation() {
   } else if (abs(currDoughDist - doughServcieStatus.getCupBaseDist()) < minDoughHeight) {
     ErrorHandeling("Cant start process, Dough level is too low.");
   } else {
+    //check that reading is stable
+    bool stable = false;
+    while (!stable) {
+      stable = isReadingStable();
+      delay(sendIntervalHigh);
+    }
+
     DateTime currTime = rtc.now();
     char strFormat[] = "YYYY-MM-DD hh:mm:ss";
     Serial.printf("Start Fermentation Process: %s \tInitialize Dough Distance: %d\n", 
@@ -735,6 +750,10 @@ void loop() {
   
   if (xBleDoughHeight.isClientDeviceConnected()) {
     
+    //check if stable, if not increase freq
+    bool stable = isReadingStable();
+    sendInterval = stable ? sendIntervalLow : sendIntervalHigh;
+    
     unsigned long now = millis();
     if ((now - lastSentTime) > sendInterval) {
 
@@ -772,13 +791,12 @@ void loop() {
         uint8_t tmpDist = VL53L0X_Dist();
         avgDistance.Insert(tmpDist);
         currDoughDist = (uint8_t)avgDistance.Avg();
-
-        
+             
         if ((doughServcieStatus.getDoughServcieStatusEnum() == DoughServcieStatusEnum::Fermenting) ||
           (doughServcieStatus.getDoughServcieStatusEnum() == DoughServcieStatusEnum::ReachedDesiredFerm)|| 
           (doughServcieStatus.getDoughServcieStatusEnum() == DoughServcieStatusEnum::OverFerm)) {
 
-          //broadcast heightv & Percentage
+          //broadcast height & Percentage
           int initDist = doughServcieStatus.getDoughInitDist();
           int baseDist = doughServcieStatus.getCupBaseDist();
           
@@ -804,6 +822,8 @@ void loop() {
           }
         } else {
           Serial.printf("Distance measured = %2d (%d) mm.\t Height = %2d (%d)\n", currDoughDist, tmpDist, floorDist - currDoughDist, floorDist - tmpDist);
+          xBleDoughHeight.sendHeightData(currDoughDist);
+
           // avgDistance.printDebug();
         }
       }

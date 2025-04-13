@@ -2,6 +2,8 @@
 #define CircularAvg_h
 
 #include <Arduino.h>
+#include <cmath>
+
 #include "Circular.h"
 
 template <class T>
@@ -15,6 +17,7 @@ public:
 
     virtual void Insert(T value); 
     virtual float Avg();
+    virtual float Stdev();
     virtual void printDebug();
 };
 #endif
