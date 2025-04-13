@@ -84,6 +84,7 @@ hw_timer_t * cupPresenceTimer = NULL;
 volatile bool cupPresence = false;
 bool cupPresenceLast = cupPresence;
 bool encounteredCupError = false;
+DoughServcieStatusEnum statusBeforeCupError;
 
 //interval
 unsigned long sendIntervalLow = 2250; //5000
@@ -759,11 +760,12 @@ void loop() {
 
       lastSentTime = now;
 
-      DoughServcieStatusEnum statusBeforeCupError;
 	    if (!cupPresence) {
-        encounteredCupError = true;
-        statusBeforeCupError = doughServcieStatus.getDoughServcieStatusEnum();
-        Serial.printf("Cup Error, Save current status %d\n", statusBeforeCupError);
+        if (!encounteredCupError) {
+          encounteredCupError = true;
+          statusBeforeCupError = doughServcieStatus.getDoughServcieStatusEnum();
+          Serial.printf("Cup Error, Save current status %d\n", statusBeforeCupError);
+        }
 	      ErrorHandeling("Cup Not Pressent");
 	    } else {
         if (encounteredCupError) {
