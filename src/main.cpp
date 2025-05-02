@@ -473,6 +473,12 @@ void OverFermentation() {
   xBleDoughHeight.sendStatustData(doughServcieStatus.getDoughServcieStatusEnum());
 }
 
+void CalibrateOffset() {
+  // lox.VL53L0X_PerformOffsetCalibration(VL53L0X_DEV Dev,
+  //   FixPoint1616_t CalDistanceMilliMeter,
+  //   int32_t *pOffsetMicroMeter);
+}
+
 
 class DoughServiceBLECallback: public DoughServiceBLECallbacks {
 public:
@@ -482,6 +488,10 @@ public:
 
   void onStop() {
     StopFermentation();
+  }
+
+  void onGeneralAction() {
+    CalibrateOffset();
   }
 
   void onConnect() {
@@ -587,26 +597,22 @@ void IRAM_ATTR onCupPresenceTimerTimer() {
 
 void Setup_VL53L0X() {
   Serial.println("Adafruit VL53L0X Init\n");
-  if (!lox.begin()) {
+  if (!lox.begin(0x29, true)) {
     ErrorHandeling("Failed to boot VL53L0X\n");
     while(3000);
     //abort();
   }
   lox.configSensor(Adafruit_VL53L0X::VL53L0X_SENSE_HIGH_ACCURACY);
-  // lox.startRangeContinuous(125);
+  lox.setMeasurementTimingBudgetMicroSeconds(50000);
 }
 
 int VL53L0X_Dist() {
+  
   VL53L0X_RangingMeasurementData_t measure;
-    
-  // Serial.print("Reading a measurement... ");
-  lox.rangingTest(&measure, false); // pass in 'true' to get debug data printout!
+  VL53L0X_Error status = lox.getSingleRangingMeasurement(&measure, false);// pass in 'true' to get debug data printout!
 
-  if (measure.RangeStatus != 4) {  // phase failures have incorrect data
-    // Serial.print("Distance (mm): "); 
-    // Serial.println(measure.RangeMilliMeter);
-  } else {
-    Serial.println("Distance out of range");
+  if (status != VL53L0X_ERROR_NONE) {  // phase failures have incorrect data
+        Serial.printf("Distance read Error %d\n", measure.RangeStatus);
   }
   return measure.RangeMilliMeter;
 }

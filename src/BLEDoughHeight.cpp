@@ -62,18 +62,18 @@ void BLEDoughHeight::initBLE() {
     pFermPercentageCharacteristic->setValue("N/A");
 
 
-    //Start/Stop
-    pStartCharacteristic = pService->createCharacteristic(
+    //Command - Start/Stop
+    pCommandCharacteristic = pService->createCharacteristic(
 										CHARACTERISTIC_START_UUID,
                                         BLECharacteristic::PROPERTY_WRITE
 									);
-    pStartCharacteristic->setCallbacks(new StartCharacteristicCB(this));
+    pCommandCharacteristic->setCallbacks(new CommandCharacteristicCB(this));
 
     BLEDescriptor startDescriptor(BLEUUID((uint16_t)0x2901));
     startDescriptor.setValue("Start/Stop Service");
-    pStartCharacteristic->addDescriptor(&startDescriptor);
+    pCommandCharacteristic->addDescriptor(&startDescriptor);
 
-    pStartCharacteristic->setValue("N/A");
+    pCommandCharacteristic->setValue("N/A");
 
 
     //Satus
@@ -194,6 +194,12 @@ void BLEDoughHeight::StopFermentation() {
     }
 }
 
+void BLEDoughHeight::GeneralAction() {
+    if (bleDoughHeightCallback != NULL) {
+        bleDoughHeightCallback->onGeneralAction();
+    }    
+}
+
 
 
 void heightCharacteristicCB::onWrite(BLECharacteristic *pCharacteristic) {
@@ -231,26 +237,29 @@ void FermPercentageCharacteristicCB::onRead(BLECharacteristic *pCharacteristic) 
 }
 
 
-void StartCharacteristicCB::onWrite(BLECharacteristic *pCharacteristic) {
+void CommandCharacteristicCB::onWrite(BLECharacteristic *pCharacteristic) {
     std::string rxValue = pCharacteristic->getValue();
 
     if (rxValue.length() > 0) {
     if (rxValue.length() == 1) {
-        if (rxValue[0] == 0x0) {
-            Serial.println(F("BLE StartStop Charachtiristic received Stop Service Command."));
+        if (rxValue[0] == 0x0) { //Stop
+            Serial.println(F("BLE Command Charachtiristic received Stop Service Command."));
             pBleDoughHeight->StopFermentation();
-        } else if (rxValue[0] == 0x1) {
-            Serial.println(F("BLE StartStop Charachtiristic received Start Service Command."));
+        } else if (rxValue[0] == 0x1) { //Start
+            Serial.println(F("BLE Command Charachtiristic received Start Service Command."));
             pBleDoughHeight->StartFermentation();
+        } else if (rxValue[0] == 0x2) { //Calibrate base
+            Serial.println(F("BLE Command Charachtiristic received Start Service Command."));
+            pBleDoughHeight->GeneralAction();
         } else {
-            Serial.printf("BLE StartStop Charachtiristic Received Value: %s\n", rxValue.c_str());
+            Serial.printf("BLE Command Charachtiristic Received Value: %s\n", rxValue.c_str());
         }
     }
     }
 }
 
-void StartCharacteristicCB::onRead(BLECharacteristic *pCharacteristic) {
-    Serial.printf("BLE StartStop Charachtiristic INVALID read request.\n");
+void CommandCharacteristicCB::onRead(BLECharacteristic *pCharacteristic) {
+    Serial.printf("BLE Command Charachtiristic INVALID read request.\n");
 }
 
 

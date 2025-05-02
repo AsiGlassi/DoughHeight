@@ -33,6 +33,7 @@ public:
 	virtual void onDisConnect();
 	virtual void onStart();
 	virtual void onStop();
+    virtual void onGeneralAction();
 };
 
 
@@ -43,7 +44,7 @@ class BLEDoughHeight
     
     BLECharacteristic* pHeightCharacteristic;
     BLECharacteristic* pFermPercentageCharacteristic;
-    BLECharacteristic* pStartCharacteristic;
+    BLECharacteristic* pCommandCharacteristic;
     BLECharacteristic* pStatusCharacteristic;
     BLECharacteristic* pDesiredFermPercentCharacteristic;
 
@@ -73,6 +74,7 @@ public:
 
     void StartFermentation();
     void StopFermentation();
+    void GeneralAction();
     void regDoughServiceBLECallback(DoughServiceBLECallbacks* pCallback) {bleDoughHeightCallback = pCallback;}
 };
 
@@ -185,12 +187,12 @@ public:
 };
 
 
-class StartCharacteristicCB: public BLECharacteristicCallbacks {
+class CommandCharacteristicCB: public BLECharacteristicCallbacks {
     
     BLEDoughHeight* pBleDoughHeight;
 
 public:
-    StartCharacteristicCB(BLEDoughHeight* pinDoughHeight) {
+    CommandCharacteristicCB(BLEDoughHeight* pinDoughHeight) {
         pBleDoughHeight = pinDoughHeight;
     }
 
