@@ -21,6 +21,7 @@
 #include "DoughCup.h"
 #include "LedDough.h"
 #include "BLEDoughHeight.h"
+#include "DoughConfiguration.h"
 #include "DoughServcieStatus.h"
 
 
@@ -55,6 +56,7 @@ LedDough leds;
 
 //Service Status
 DoughServcieStatus doughServcieStatus;
+DoughConfiguration doughConfiguration;
 
 //BLE
 BLEDoughHeight xBleDoughHeight(&doughServcieStatus);
@@ -140,7 +142,7 @@ void saveStatus() {
   DateTime startTime = doughServcieStatus.getFermentationStart();
   doc["FermentationStart"] = startTime.toString(strFormat);
   doc["DoughInitDist"] = doughServcieStatus.getDoughInitDist();
-  doc["CupBaseDis"] = doughServcieStatus.getCupBaseDist();
+  doc["CupBaseDis"] = doughConfiguration.getCupBaseDist();
 
   // Serialize JSON to file
   if (serializeJson(doc, file) == 0) {
@@ -203,7 +205,7 @@ void readStatus() {
         doughServcieStatus.setDoughServcieStatusEnum(DoughServcieStatusEnum::Fermenting, "Start Fermentation");
         doughServcieStatus.setFermentationStart(fermStarted);
         doughServcieStatus.setDoughInitDist(doc["DoughInitDist"]);
-        doughServcieStatus.setCupBaseDist(doc["CupBaseDis"]);
+        doughConfiguration.setCupBaseDist(doc["CupBaseDis"]);
       } else {
         Serial.printf("Ignoring Saved status - Past a long time since last run.\n");    
       }
@@ -379,7 +381,7 @@ void StartFermentationAction() {
     ErrorHandeling("Cant start process, Cup Not Pressent");
   } else if (currDoughDist == 0) {
     ErrorHandeling("Cant start process, Distance = 0.");
-  } else if (abs(currDoughDist - doughServcieStatus.getCupBaseDist()) < minDoughHeight) {
+  } else if (abs(currDoughDist - doughConfiguration.getCupBaseDist()) < minDoughHeight) {
     ErrorHandeling("Cant start process, Dough level is too low.");
   } else {
     //check that reading is stable
@@ -639,7 +641,7 @@ void setup() {
 
   //initiate value
   floorDist = 255;
-  doughServcieStatus.setCupBaseDist(floorDist-15);
+  doughConfiguration.setCupBaseDist(floorDist-15);
 
   //Start Pixel light
   leds.initLed();
@@ -736,7 +738,7 @@ void loop() {
     // check against current status, get cup details
     DoughCup cupDetected = cupsMap[nfcId.str()];
     int newCupH = cupDetected.getCupHeight();
-    int currCupH = doughServcieStatus.getCupBaseDist();
+    int currCupH = doughConfiguration.getCupBaseDist();
     if (newCupH != currCupH) {
       //Cup Changed...
 
@@ -812,7 +814,7 @@ void loop() {
 
           //broadcast height & Percentage
           int initDist = doughServcieStatus.getDoughInitDist();
-          int baseDist = doughServcieStatus.getCupBaseDist();
+          int baseDist = doughConfiguration.getCupBaseDist();
           
           float fermPercent = (initDist - currDoughDist)/(float)(baseDist - initDist);
           // Serial.printf("Dough Fermentation BaseDist:%d InitDist:%d currDist:%d = %f2%%\n", baseDist, initDist, currDoughDist, fermPercent*100);
@@ -826,8 +828,8 @@ void loop() {
 
 
           //check if reached desired fermentation status
-          float desiredPercentage = doughServcieStatus.getDesiredFermPercentage();
-          if (fermPercent > (desiredPercentage + doughServcieStatus.getOverFermPercentage())) {
+          float desiredPercentage = doughConfiguration.getDesiredFermPercentage();
+          if (fermPercent > (desiredPercentage + doughConfiguration.getOverFermPercentage())) {
             OverFermentation();
           } else if (fermPercent > desiredPercentage) {
             ReachedDesiredFermentation();

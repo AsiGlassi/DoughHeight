@@ -6,6 +6,7 @@
 #include <BLEUtils.h>
 #include <BLE2902.h>
 
+#include "DoughConfiguration.h"
 #include "DoughServcieStatus.h"
 #include "BLEDoughHeightCharacteristic.h"
 
@@ -55,6 +56,7 @@ class BLEDoughHeight
     DoughServiceBLECallbacks* bleDoughHeightCallback = NULL;
 
     bool deviceConnected = false;
+    DoughConfiguration* bleDoughConfiguration = NULL;
     DoughServcieStatus* bleDoughServcieStatus = NULL;
    
 
@@ -66,6 +68,7 @@ public:
     void setDeviceConnected(bool conn);
     bool isClientDeviceConnected();
 
+    DoughConfiguration getBleDoughConfiguration() {return *bleDoughConfiguration;}
     DoughServcieStatus getBleDoughServcieStatus() {return *bleDoughServcieStatus;}
 
     float getDoughFermentationPercent() {return bleDoughServcieStatus->getFermPercentage();}
