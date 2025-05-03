@@ -374,7 +374,7 @@ void ClientDisConnected() {
   }
 }
 
-void StartFermentation() {
+void StartFermentationAction() {
   if (!cupPresence) {
     ErrorHandeling("Cant start process, Cup Not Pressent");
   } else if (currDoughDist == 0) {
@@ -425,7 +425,7 @@ void ContFermenting() {
   xBleDoughHeight.sendStatustData(doughServcieStatus.getDoughServcieStatusEnum());
 }
 
-void StopFermentation() {
+void StopFermentationAction() {
   Serial.println(F("Stop Fermentation Process."));
 
   //set status
@@ -479,19 +479,25 @@ void CalibrateOffset() {
   //   int32_t *pOffsetMicroMeter);
 }
 
+void UpdateConfiguration() { //ToDo - Implement
+    //set Confguration
+
+    //save configuration
+}
+
 
 class DoughServiceBLECallback: public DoughServiceBLECallbacks {
 public:
   void onStart() {
-    StartFermentation();
+    StartFermentationAction();
   }
 
   void onStop() {
-    StopFermentation();
+    StopFermentationAction();
   }
 
-  void onGeneralAction() {
-    CalibrateOffset();
+  void onConfigurationChanged() {
+    UpdateConfiguration();
   }
 
   void onConnect() {
