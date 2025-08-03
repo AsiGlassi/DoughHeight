@@ -19,7 +19,6 @@
 #include "PlaySound.h"
 
 
-#include "NfcId.h"
 #include "DoughCup.h"
 #include "LedDough.h"
 #include "BLEDoughHeight.h"
@@ -79,11 +78,6 @@ const char *lastSettingsFileName = "/LastSettings.json";
 // Cup List
 const char *cupsListFileName = "/Cups.json";
 std::map<std::string, DoughCup> cupsMap;
-
-//pn352 0x24
-#define PN532_IRQ   (15)
-#define PN532_RESET (4)  // Not connected by default on the NFC Shield
-Adafruit_PN532 nfc(PN532_IRQ, PN532_RESET);
 
 //general 
 const int DELAY_BETWEEN_CARDS = 1000;//500 caused issue 
@@ -530,76 +524,6 @@ public:
 };
 
 
-NfcId handleCardDetected() {
-  
-  NfcId retUId;
-  bool success;
-
-  Serial.println("Handelling");
-
-  // Buffer to store the UID
-  uint8_t uid[7] = { 0, 0, 0, 0, 0, 0, 0 };
-  // UID size (4 or 7 bytes depending on card type)
-  uint8_t uidLength;
-
-  // read the NFC tag's info
-  success = nfc.readDetectedPassiveTargetID(uid, &uidLength);
-  if (success) {
-
-    retUId.setIds(uid);
-    // If the card is detected, print the UID
-    Serial.print("Size of UID: "); Serial.print(uidLength, DEC);
-    Serial.println(" bytes");
-    Serial.print("UID: ");
-    Serial.print(retUId.str().c_str());
-    Serial.println("\n\n");
-  } else {
-      Serial.println("Read failed (not a card?)");
-  }
-
-  // The reader will be enabled again after DELAY_BETWEEN_CARDS ms will pass.
-  readerDisabled = true;
-  cardReadWaiting = false;
-  timeLastCardRead = millis();
-  return retUId;
-}
-
-void IRAM_ATTR detectsNFCCard() {
-  Serial.printf("\nNFC Card detected Interupt ... %lu\n", micros() );
-  detachInterrupt(PN532_IRQ); 
-  cardReadWaiting = true;
-}
-
-void startListeningToNFC() {
-  Serial.println("StartListeningToNFC - Waiting for card (ISO14443A Mifare)...");
-
-  //Enable interrupt after starting NFC
-  nfc.startPassiveTargetIDDetection(PN532_MIFARE_ISO14443A);
-  attachInterrupt(PN532_IRQ, detectsNFCCard, FALLING); 
-}
-
-bool nfcConnect() {
-  
-  nfc.begin();
-
-  // Connected, show version
-  uint32_t versiondata = nfc.getFirmwareVersion();
-  if (! versiondata) {
-    Serial.println("\nDidn't find PN53x board !!!\n");
-    return false;
-  }
-
-  //port
-  Serial.print("Found chip PN5"); Serial.print((versiondata >> 24) & 0xFF, HEX);
-  Serial.print(", Firmware version: "); Serial.print((versiondata >> 16) & 0xFF, DEC);
-  Serial.print('.'); Serial.println((versiondata >> 8) & 0xFF, DEC);
-
-  // configure board to read RFID tags
-  nfc.SAMConfig();
-
-  return true;
-}
-
 void IRAM_ATTR CupStatusChangedInt() {
   // Object presence changed, Start timer and check
   // Serial.printf("Cup INT %d\n",!digitalRead(CUP_PRESENCE_IRQ) );
@@ -651,7 +575,6 @@ void setup() {
 
   pinMode(LED_BUILTIN, OUTPUT);
   pinMode(BUZZ_PIN, OUTPUT);
-  pinMode(PN532_IRQ, INPUT_PULLUP);
   pinMode(CUP_PRESENCE_IRQ, INPUT);
 
   Serial.begin(115200);
@@ -691,13 +614,6 @@ void setup() {
   Setup_VL53L0X();
   uint8_t tmpDist = VL53L0X_Dist();
   avgDistance.SetAll(tmpDist);
-
-  //Start NFC
-  if (!nfcConnect()) {
-    ErrorHandeling("Failed to initialize NFC tag reader."); 
-    delay(3000);
-    // abort();
-  }  
 
   //cup interupt
   cupPresence = !digitalRead(CUP_PRESENCE_IRQ);
@@ -749,23 +665,7 @@ void loop() {
 
   //check if there is NFC Card Detected.
   bool pastDelayTime = true;
-  if (cardReadWaiting) { 
-    //NFC found, read card
-    NfcId nfcId = handleCardDetected();
-    if (nfcId.isEmpty()) {
-      //Error
-    }
-
-    // check against current status, get cup details
-    DoughCup cupDetected = cupsMap[nfcId.str()];
-    int newCupH = cupDetected.getCupHeight();
-    int currCupH = doughConfiguration.getCupBaseDist();
-    if (newCupH != currCupH) {
-      //Cup Changed...
-
-    }
-
-  } else if (readerDisabled) {
+  if (readerDisabled) {
     if (millis() - timeLastCardRead > DELAY_BETWEEN_CARDS) {
       readerDisabled = false;
       pastDelayTime = true;
@@ -779,7 +679,7 @@ void loop() {
       cupPresenceLast = cupPresence;
       if (cupPresence) {
         //cup presence - try to read NFC
-        startListeningToNFC();// doesnt work within int cup
+        // startListeningToNFC();// doesnt work within int cup
       }
     }
   }
