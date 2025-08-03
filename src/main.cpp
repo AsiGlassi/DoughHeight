@@ -16,6 +16,8 @@
 #include "CircularAvg.h"
 #include "CircularAvg.cpp"
 #include "Circular.cpp"
+#include "PlaySound.h"
+
 
 #include "NfcId.h"
 #include "DoughCup.h"
@@ -42,6 +44,14 @@ Adafruit_VL53L0X lox = Adafruit_VL53L0X();
 //0x57 -  
 //0x68 - Time - DS3231
 
+//Sound - I2S
+#define I2S_DOUT      16 // Daata out pin
+#define I2S_BCLK      17 // I2S bit clock
+#define I2S_LRC       18 // I2S left right clock
+PlaySound playSound = PlaySound(I2S_BCLK, I2S_LRC, I2S_DOUT); 
+static const char* FermDoneFile = "/FermDone.mp3";
+static const char* FermErrorFile = "/FermError.mp3";
+
 //Dough config
 uint8_t currDoughDist = 0;
 uint8_t defaultDist = 0;
@@ -52,7 +62,9 @@ int minDoughHeight = 20;
 int floorDist=0;
 
 //Pixel
-LedDough leds;
+#define PIXELDATAPIN    12
+#define NUMPIXELS 3 
+LedDough leds(PIXELDATAPIN, NUMPIXELS);
 
 //Service Status
 DoughServcieStatus doughServcieStatus;
@@ -338,6 +350,11 @@ void ErrorHandeling(std::string errorMsg) {
     //Set Light status
     leds.Error();
 
+    //sound
+    if(!playSound.isRunning()) {
+      playSound.playSound(FermErrorFile);
+    }
+
     //update BLE device status changed
     xBleDoughHeight.sendStatustData(doughServcieStatus.getDoughServcieStatusEnum(), errorMsg);
 }
@@ -456,10 +473,11 @@ void ReachedDesiredFermentation() {
   //update BLE device status changed
   xBleDoughHeight.sendStatustData(doughServcieStatus.getDoughServcieStatusEnum());
 
-  //Make some sounds for
-  digitalWrite(BUZZ_PIN, HIGH);
-  delay(1250);
-  digitalWrite(BUZZ_PIN, LOW);
+  //Make some sound
+  playSound.playSound(FermDoneFile);
+  // digitalWrite(BUZZ_PIN, HIGH);
+  // delay(1250);
+  // digitalWrite(BUZZ_PIN, LOW);
 }
 
 void OverFermentation() {
@@ -703,6 +721,9 @@ void setup() {
     Serial.flush();
     delay(3000);
     abort();
+
+    //Sound
+    playSound.setVolume(10);
   }
 
   //Read Service status 
