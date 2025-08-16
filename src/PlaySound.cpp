@@ -19,8 +19,7 @@ void PlaySound::playSound(const char* filename) {
         Serial.println("Error: Invalid filename provided to playSound");
         return;
     }
-    Serial.print("-- Starting sound playback task for file: ");
-    Serial.println(filename);
+    Serial.print("Starting sound playback task for file: "); Serial.println(filename);
     try {
         xTaskCreatePinnedToCore(this->i2sPlaySoundTask, "i2sPlaySoundTask", 4096, (void*)filename, 5, &soundTaskHandle, 1);
         // xTaskCreate(this->i2sPlaySoundTask, /* Function to implement the task */
@@ -54,7 +53,7 @@ void PlaySound::i2sPlaySoundTask(void* param) {
         vTaskDelay(250 / portTICK_PERIOD_MS);
     }
  
-    Serial.println("Starting audio playback...");
+    // Serial.println("Starting audio playback task...");
     instance->audio.connecttoFS(SPIFFS, filename);
     while (instance->audio.isRunning()) {
         instance->audio.loop();
@@ -69,10 +68,14 @@ bool PlaySound::isRunning() {
 }
 
 void audio_info(const char *info){
+#ifdef DEBUG_SOUND
     Serial.print("info        "); Serial.println(info);
+#endif
 }
 void audio_id3data(const char *info){  //id3 metadata
+#ifdef DEBUG_SOUND
     Serial.print("id3data     ");Serial.println(info);
+#endif
 }
 void audio_eof_mp3(const char *info){  //end of file
     Serial.print("eof_mp3     ");Serial.println(info);

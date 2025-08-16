@@ -121,11 +121,12 @@ DateTime ParseDateTime(const char* timestampStr) {
 bool isReadingStable() {
   float deviation = avgDistance.Stdev();
   // Serial.printf("Reading deviation: %2f%\n", deviation);
-  return (deviation <= 1.25);
+  return (deviation <= 1.15);
 }
 
 
 // Saves Dough Service Startus to a file
+
 void saveStatus() {
 
   if (SPIFFS.exists(lastSettingsFileName)) {
@@ -211,10 +212,11 @@ void readStatus() {
       if (diffInMin < fermentationAgingSpan) {
         //Continue fermentation
         Serial.printf("Continue fermentation.\n");
-        doughServcieStatus.setDoughServcieStatusEnum(DoughServcieStatusEnum::Fermenting, "Start Fermentation");
+        doughServcieStatus.setDoughServcieStatusEnum(DoughServcieStatusEnum::Fermenting, "Continue Fermentation");
         doughServcieStatus.setFermentationStart(fermStarted);
         doughServcieStatus.setDoughInitDist(doc["DoughInitDist"]);
         doughConfiguration.setCupBaseDist(doc["CupBaseDis"]);
+        //ContFermenting();
       } else {
         Serial.printf("Ignoring Saved status - Past a long time since last run.\n");    
       }
@@ -339,7 +341,7 @@ void listDir() {
 
 
 void ErrorHandeling(std::string errorMsg) {
-    Serial.printf("Dough Service Error %s.\n", errorMsg.c_str());
+    Serial.printf("Dough Service Error: '%s'.\n", errorMsg.c_str());
 
     //set status
     doughServcieStatus.setDoughServcieStatusEnum(DoughServcieStatusEnum::Error, errorMsg);
@@ -704,7 +706,7 @@ void loop() {
     }
   }
   
-  if (xBleDoughHeight.isClientDeviceConnected()) {
+  // if (xBleDoughHeight.isClientDeviceConnected()) {
     
     //check if stable, if not increase freq
     bool stable = isReadingStable();
@@ -715,14 +717,14 @@ void loop() {
 
       lastSentTime = now;
 
-	    if (!cupPresence) {
+      if (!cupPresence) {
         if (!encounteredCupError) {
           encounteredCupError = true;
           statusBeforeCupError = doughServcieStatus.getDoughServcieStatusEnum();
           Serial.printf("Cup Error, Save current status %d\n", statusBeforeCupError);
         }
-	      ErrorHandeling("Cup Not Pressent");
-	    } else {
+        ErrorHandeling("Cup Not Pressent");
+      } else {
         if (encounteredCupError) {
           encounteredCupError = false;
           //cup restored, restore latest status
@@ -769,7 +771,9 @@ void loop() {
 
           //check if reached desired fermentation status
           float desiredPercentage = doughConfiguration.getDesiredFermPercentage();
-          if (fermPercent > (desiredPercentage + doughConfiguration.getOverFermPercentage())) {
+          /*if (fermPercent < -0.15) {
+            ErrorHandeling("Dough Height is out of scope"); //Todo - Need to improve recovery, until then ...
+          } else */if (fermPercent > (desiredPercentage + doughConfiguration.getOverFermPercentage())) {
             OverFermentation();
           } else if (fermPercent > desiredPercentage) {
             ReachedDesiredFermentation();
@@ -778,13 +782,13 @@ void loop() {
           }
         } else {
           // Serial.printf("Distance measured = %2d (%d) mm.\t Height = %2d (%d)\n", currDoughDist, tmpDist, floorDist - currDoughDist, floorDist - tmpDist);
-          Serial.printf("Dist To Floor %d\t Base Height %d\t | \tDistance measured = %2dmm (%d).\t --> \tCurrent Dough Height = %2dmm (%d)\n", 
+          Serial.printf("Dist To Floor %d\t Base Height %d\t | \tDistance measured = %2dmm (%d)\t --> \tCurrent Dough Height = %2dmm (%d)\n", 
             floorDist, floorDist - baseDist, currDoughDist, tmpDist, baseDist - currDoughDist, baseDist - tmpDist);
           xBleDoughHeight.sendHeightData(baseDist - currDoughDist);
         }
       }
     }
-  }
+  // }/}
   // delay(500); //causing issues with BLE & NFC
 }
 

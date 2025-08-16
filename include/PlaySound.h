@@ -3,6 +3,8 @@
 #include <SPIFFS.h>
 #include "Audio.h"
 
+//#define DEBUG_SOUND true
+
 class PlaySound {
 public:
     PlaySound(uint8_t bclk, uint8_t lrc, uint8_t dout);

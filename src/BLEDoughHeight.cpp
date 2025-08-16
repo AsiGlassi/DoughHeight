@@ -155,7 +155,7 @@ void BLEDoughHeight::initBLE() {
 
 
 bool BLEDoughHeight::isClientDeviceConnected() {
-       return deviceConnected;
+    return deviceConnected;
 }
 
 void BLEDoughHeight::sendHeightData(uint8_t doughHeight) {
