@@ -98,7 +98,7 @@ bool encounteredCupError = false;
 DoughServcieStatusEnum statusBeforeCupError;
 
 //interval
-unsigned long sendIntervalLow = 2250; //5000
+unsigned long sendIntervalLow = 4000; //5000
 unsigned long sendInterval = sendIntervalLow;
 unsigned long sendIntervalHigh = sendIntervalLow/4;
 unsigned long lastSentTime = 0;
@@ -444,7 +444,7 @@ void StartFermentationAction() {
 }
 
 void ContFermenting() {
-  Serial.println(F("Continue Fermentation Process."));
+  // Serial.println(F("Continue Fermentation Process."));
 
   //set status
   doughServcieStatus.setDoughServcieStatusEnum(DoughServcieStatusEnum::Fermenting);
@@ -601,7 +601,7 @@ void setup() {
   Serial.println("\n\n --- Starting Dough Fermentation Service ---");
 
   //initiate value
-  floorDist = 255;
+  floorDist = 146;
   doughConfiguration.setCupBaseDist(floorDist-15);
 
   //Start Pixel light
@@ -748,6 +748,7 @@ void loop() {
         uint8_t tmpDist = VL53L0X_Dist();
         avgDistance.Insert(tmpDist);
         currDoughDist = (uint8_t)avgDistance.Avg();
+        int baseDist = doughConfiguration.getCupBaseDist();
              
         if ((doughServcieStatus.getDoughServcieStatusEnum() == DoughServcieStatusEnum::Fermenting) ||
           (doughServcieStatus.getDoughServcieStatusEnum() == DoughServcieStatusEnum::ReachedDesiredFerm)|| 
@@ -755,15 +756,13 @@ void loop() {
 
           //broadcast height & Percentage
           int initDist = doughServcieStatus.getDoughInitDist();
-          int baseDist = doughConfiguration.getCupBaseDist();
-          
-          float fermPercent = (initDist - currDoughDist)/(float)(baseDist - initDist);
-          // Serial.printf("Dough Fermentation BaseDist:%d InitDist:%d currDist:%d = %f2%%\n", baseDist, initDist, currDoughDist, fermPercent*100);
-          Serial.printf("Dough Fermentation Base Height:%d \tInit Dough Height:%d \tCurrent Ferm Height:%d = %2f%%\n", 
-                        floorDist - baseDist, baseDist - initDist, initDist - currDoughDist, fermPercent*100);
+          int doughHieght = initDist - currDoughDist;
+          float fermPercent = (doughHieght)/(float)(baseDist - initDist);
+          Serial.printf("Init Dough Height:%d \tCurrent Ferm Height:%d = %2f2%%\n", 
+                        baseDist - initDist, doughHieght, fermPercent*100);
 
-          doughServcieStatus.setDoughHeight(currDoughDist);
-          xBleDoughHeight.sendHeightData(currDoughDist);
+          doughServcieStatus.setDoughHeight(doughHieght);
+          xBleDoughHeight.sendHeightData(doughHieght);
           doughServcieStatus.setFermPercentage(fermPercent);
           xBleDoughHeight.sendDoughFermPercentData(fermPercent);
 
@@ -778,10 +777,10 @@ void loop() {
             ContFermenting();
           }
         } else {
-          Serial.printf("Distance measured = %2d (%d) mm.\t Height = %2d (%d)\n", currDoughDist, tmpDist, floorDist - currDoughDist, floorDist - tmpDist);
-          xBleDoughHeight.sendHeightData(currDoughDist);
-
-          // avgDistance.printDebug();
+          // Serial.printf("Distance measured = %2d (%d) mm.\t Height = %2d (%d)\n", currDoughDist, tmpDist, floorDist - currDoughDist, floorDist - tmpDist);
+          Serial.printf("Dist To Floor %d\t Base Height %d\t | \tDistance measured = %2dmm (%d).\t --> \tCurrent Dough Height = %2dmm (%d)\n", 
+            floorDist, floorDist - baseDist, currDoughDist, tmpDist, baseDist - currDoughDist, baseDist - tmpDist);
+          xBleDoughHeight.sendHeightData(baseDist - currDoughDist);
         }
       }
     }
