@@ -78,6 +78,9 @@ BLEDoughHeight xBleDoughHeight(&doughServcieStatus);
 // Service Status files
 const char *lastSettingsFileName = "/LastSettings.json";
 
+//Configuration File
+const char *configurationFileName = "/Configuration.json";
+
 // Cup List
 const char *cupsListFileName = "/Cups.json";
 std::map<std::string, DoughCup> cupsMap;
@@ -152,7 +155,7 @@ void saveStatus() {
   DateTime startTime = doughServcieStatus.getFermentationStart();
   doc["FermentationStart"] = startTime.toString(strFormat);
   doc["DoughInitDist"] = doughServcieStatus.getDoughInitDist();
-  doc["CupBaseDis"] = doughConfiguration.getCupBaseDist();
+  doc["CupBaseDis"] = doughConfiguration.getCupBaseHeight();
 
   // Serialize JSON to file
   if (serializeJson(doc, file) == 0) {
@@ -215,7 +218,7 @@ void readStatus() {
         doughServcieStatus.setDoughServcieStatusEnum(DoughServcieStatusEnum::Fermenting, "Continue Fermentation");
         doughServcieStatus.setFermentationStart(fermStarted);
         doughServcieStatus.setDoughInitDist(doc["DoughInitDist"]);
-        doughConfiguration.setCupBaseDist(doc["CupBaseDis"]);
+        // doughConfiguration.setCupBaseHeight(doc["CupBaseDis"]);
         //ContFermenting();
       } else {
         Serial.printf("Ignoring Saved status - Past a long time since last run.\n");    
@@ -407,7 +410,7 @@ void StartFermentationAction() {
     ErrorHandeling("Cant start process, Cup Not Pressent");
   } else if (currDoughDist == 0) {
     ErrorHandeling("Cant start process, Distance = 0.");
-  } else if (abs(currDoughDist - doughConfiguration.getCupBaseDist()) < minDoughHeight) {
+  } else if (abs(currDoughDist - doughConfiguration.getCupBaseHeight()) < minDoughHeight) {
     ErrorHandeling("Cant start process, Dough level is too low.");
   } else {
     //check that reading is stable
@@ -569,7 +572,7 @@ void IRAM_ATTR onCupPresenceTimerTimer() {
 
 void Setup_VL53L0X() {
   Serial.println("Adafruit VL53L0X Init\n");
-  if (!lox.begin(0x29, true)) {
+  if (!lox.begin(0x29, false)) {
     ErrorHandeling("Failed to boot VL53L0X\n");
     while(3000);
     //abort();
@@ -602,14 +605,13 @@ void setup() {
   Serial.begin(115200);
   Serial.println("\n\n --- Starting Dough Fermentation Service ---");
 
-  //initiate value
-  floorDist = 146;
-  doughConfiguration.setCupBaseDist(floorDist-15);
-
   //Start Pixel light
   leds.initLed();
   
-    //init BLE
+  //Sound
+  playSound.setVolume(10);
+
+  //init BLE
   xBleDoughHeight.initBLE();
   xBleDoughHeight.regDoughServiceBLECallback(new DoughServiceBLECallback());
 
@@ -620,12 +622,10 @@ void setup() {
     delay(3000);
     // abort();
   }
-
   if (rtc.lostPower()) {
     Serial.println("RTC is NOT running!");
     rtc.adjust(DateTime(__DATE__, __TIME__));
   }
-  
   DateTime currTime = rtc.now();
   char strFormat[25];
   String cTimeStr = currTime.timestamp(DateTime::timestampOpt::TIMESTAMP_FULL);
@@ -652,33 +652,29 @@ void setup() {
   // Serial.print(" >> APB Freq:   "); Serial.println(getApbFrequency());
 
   //Start SPIFF
-  Serial.println("\nStarting SPIFFS");
+  Serial.println("Starting SPIFFS");
 
   if(!SPIFFS.begin(true)){
     Serial.println("An Error has occurred while mounting SPIFFS");
     Serial.flush();
     delay(3000);
-    abort();
-
-    //Sound
-    playSound.setVolume(10);
+    // abort();
   }
 
+  //Read Config files
+  if (!doughConfiguration.LoadConfigurationFromFile(configurationFileName)) {
+    Serial.println("Failed to load Configuration file, using default values.");
+  }
+  doughConfiguration.PrintConfiguration();
+  floorDist = doughConfiguration.getFloorDist();
+  
+  //Sound
+  playSound.setVolume(10);
+  
   //Read Service status 
-  readStatus(); 
-
-  //read cup files
-  readCups();
-  Serial.printf("Cup size: %d\n", cupsMap.size());
-  // for (std::pair<std::string, DoughCup> element : cupsMap) {
-  //     Serial.print(element.first.c_str());
-  //     Serial.print(": ");
-  //     Serial.print(element.second.c_str());
-  //     Serial.println();
-  // }
+  readStatus();
+  Serial.println("\n");
  
-  // startListeningToNFC();// For  testing
-
   delay(750);
 }
 
@@ -750,7 +746,7 @@ void loop() {
         uint8_t tmpDist = VL53L0X_Dist();
         avgDistance.Insert(tmpDist);
         currDoughDist = (uint8_t)avgDistance.Avg();
-        int baseDist = doughConfiguration.getCupBaseDist();
+        int baseDist = floorDist - doughConfiguration.getCupBaseHeight();
              
         if ((doughServcieStatus.getDoughServcieStatusEnum() == DoughServcieStatusEnum::Fermenting) ||
           (doughServcieStatus.getDoughServcieStatusEnum() == DoughServcieStatusEnum::ReachedDesiredFerm)|| 

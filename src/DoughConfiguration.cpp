@@ -6,7 +6,7 @@ std::string DoughConfiguration::serializeToJson() {
     StaticJsonDocument<200> doc;
     doc["desiredFermPercentage"] = m_desiredFermPercentage;
     doc["overFermPercentage"] = m_overFermPercentage;
-    doc["cupBaseDist"] = m_cupBaseDist;
+    doc["cupBaseHeight"] = m_cupBaseHeight;
 
     std::string jsonString;
     serializeJson(doc, jsonString);
@@ -21,7 +21,7 @@ void DoughConfiguration::deserializeFromJson(const std::string& jsonString) {
     if (!error) {
         m_desiredFermPercentage = doc["desiredFermPercentage"] | m_desiredFermPercentage;
         m_overFermPercentage = doc["overFermPercentage"] | m_overFermPercentage;
-        m_cupBaseDist = doc["cupBaseDist"] | m_cupBaseDist;
+        m_cupBaseHeight = doc["cupBaseHeight"] | m_cupBaseHeight;
     }
 }
 
