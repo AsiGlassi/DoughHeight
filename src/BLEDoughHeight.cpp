@@ -158,13 +158,13 @@ bool BLEDoughHeight::isClientDeviceConnected() {
     return deviceConnected;
 }
 
-void BLEDoughHeight::sendHeightData(uint8_t doughHeight) {
+void BLEDoughHeight::sendHeightData(int doughHeight) {
     if (!deviceConnected) return;
 #ifdef DEBUG_BLE
-    Serial.printf("BLE Push dought height '%d'\n", doughHeight);
+    Serial.printf("BLE Push dough height '%d'\n", doughHeight);
 #endif
-    static char doughHeightCTemp[6];
-    dtostrf(doughHeight, 6, 0, doughHeightCTemp);
+    static char doughHeightCTemp[12];
+    snprintf(doughHeightCTemp, sizeof(doughHeightCTemp), "%d", doughHeight);
     pHeightCharacteristic->setValue(doughHeightCTemp);
     pHeightCharacteristic->notify();
 }

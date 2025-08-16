@@ -72,7 +72,7 @@ public:
     DoughServcieStatus getBleDoughServcieStatus() {return *bleDoughServcieStatus;}
 
     float getDoughFermentationPercent() {return bleDoughServcieStatus->getFermPercentage();}
-    void sendHeightData(uint8_t doughHeight);
+    void sendHeightData(int doughHeight);
     void sendDoughFermPercentData(float doughFermenPercent);
     void sendStatustData(DoughServcieStatusEnum status);
     void sendStatustData(DoughServcieStatusEnum status, std::string);
