@@ -2,14 +2,17 @@
 #define __Dough_Configuration_h__
 
 
+#include <ArduinoJson.h> // Include ArduinoJson library
+#include <string>   
+
 class DoughConfiguration {
 
     private:
       // Desired Fermentation Percentage - What is the desired fermentation amount.
-      float m_desiredFermPercentage = 0.10;
+      float m_desiredFermPercentage = 0.3;
     
       // Fermentation Percentage above the desired fermentation percentage, will be recognized as Over Fermentation Percentage
-      float m_overFermPercentage = 0.07;
+      float m_overFermPercentage = 0.15;
     
       // The cup base height, represented by the distance.
       int m_cupBaseDist = 0;
@@ -26,6 +29,13 @@ class DoughConfiguration {
       // Getters and Setters for Cup Base Distance
       int getCupBaseDist() { return m_cupBaseDist; }
       void setCupBaseDist(int cupBaseDist) { m_cupBaseDist = cupBaseDist; }
+
+      std::string serializeToJson();
+      void deserializeFromJson(const std::string& jsonString);
+
+      bool SaveConfigurationToFile(const char* fileName);
+
+      bool LoadConfigurationFromFile(const char* fileName);
     };
     
     #endif
