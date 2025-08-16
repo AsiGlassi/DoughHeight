@@ -48,8 +48,11 @@ Adafruit_VL53L0X lox = Adafruit_VL53L0X();
 #define I2S_BCLK      17 // I2S bit clock
 #define I2S_LRC       18 // I2S left right clock
 PlaySound playSound = PlaySound(I2S_BCLK, I2S_LRC, I2S_DOUT); 
+static const char* FermStartFile = "/FermStart.mp3";
 static const char* FermDoneFile = "/FermDone.mp3";
 static const char* FermErrorFile = "/FermError.mp3";
+static const char* DeviceConnFile = "/DeviceConn.mp3";
+static const char* DeviceDisConnFile = "/DeviceDisConn.mp3";
 
 //Dough config
 uint8_t currDoughDist = 0;
@@ -376,6 +379,11 @@ void ClientConnected() {
   if (currStatus == DoughServcieStatusEnum::idle) {
     leds.BleConnected();
   }
+
+  //sound
+  if(!playSound.isRunning()) {
+    playSound.playSound(DeviceConnFile);
+  }
 }
 
 void ClientDisConnected() {
@@ -384,6 +392,11 @@ void ClientDisConnected() {
   DoughServcieStatusEnum currStatus = doughServcieStatus.getDoughServcieStatusEnum();
   if (currStatus == DoughServcieStatusEnum::idle) {
     leds.idle();
+  }
+
+  //sound
+  if(!playSound.isRunning()) {
+    playSound.playSound(DeviceDisConnFile);
   }
 }
 
@@ -416,6 +429,11 @@ void StartFermentationAction() {
 
     //Set Light status
     leds.Fermenting();
+
+    //sound
+    if(!playSound.isRunning()) {
+      playSound.playSound(FermStartFile);
+    }
 
     //update BLE device status changed
     xBleDoughHeight.sendStatustData(doughServcieStatus.getDoughServcieStatusEnum());
@@ -467,8 +485,10 @@ void ReachedDesiredFermentation() {
   //update BLE device status changed
   xBleDoughHeight.sendStatustData(doughServcieStatus.getDoughServcieStatusEnum());
 
-  //Make some sound
-  playSound.playSound(FermDoneFile);
+  //sound
+  if(!playSound.isRunning()) {
+    playSound.playSound(FermDoneFile);
+  }
   // digitalWrite(BUZZ_PIN, HIGH);
   // delay(1250);
   // digitalWrite(BUZZ_PIN, LOW);

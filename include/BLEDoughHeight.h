@@ -11,7 +11,7 @@
 #include "BLEDoughHeightCharacteristic.h"
 
 
-#define DEBUG_BLE false
+//#define DEBUG_BLE true
 
 //BLE Dough Height service call back type
 typedef void (*BleDoughServiceCallbackFunction)(void);
