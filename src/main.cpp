@@ -608,7 +608,7 @@ void setup() {
   leds.initLed();
   
   //Sound
-  playSound.setVolume(10);
+  playSound.setVolume(100);
 
   //init BLE
   xBleDoughHeight.initBLE();
@@ -667,9 +667,6 @@ void setup() {
   doughConfiguration.PrintConfiguration();
   floorDist = doughConfiguration.getFloorDist();
   Serial.println();
-  
-  //Sound
-  playSound.setVolume(10);
   
   //Read Service status 
   readStatus();
