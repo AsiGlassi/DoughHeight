@@ -7,13 +7,11 @@
 #include "DoughServcieStatus.h"
 
 
-#define NUMPIXELS 3 
-#define PIXELDATAPIN    12
 
 class LedDough {
 
     //Pixel
-    Adafruit_NeoPixel strip = Adafruit_NeoPixel(NUMPIXELS, PIXELDATAPIN, NEO_GRB + NEO_KHZ800);
+    Adafruit_NeoPixel strip;
     uint32_t colors[6]= {0xFFFFFF, 0xFFFF88, 0x33FF33, 0xFF7533, 0xEE3333};
     uint32_t clientConnectedcolor = 0xAC6199;
     volatile uint32_t selectedColor = colors[0];
@@ -21,6 +19,11 @@ class LedDough {
     //Task Parameters
     TaskHandle_t BlinkLedTaskHandle;
     volatile bool FadeLedTaskRunning = false;
+
+public:
+    // Constructor that receives the data pin
+    LedDough(uint8_t pixelDataPin, int numPixels)
+        : strip(numPixels, pixelDataPin, NEO_GRB + NEO_KHZ800) {}
 
 private:
     void StartFadeLedTask(uint32_t color);

@@ -16,11 +16,13 @@
 #include "CircularAvg.h"
 #include "CircularAvg.cpp"
 #include "Circular.cpp"
+#include "PlaySound.h"
 
-#include "NfcId.h"
+
 #include "DoughCup.h"
 #include "LedDough.h"
 #include "BLEDoughHeight.h"
+#include "DoughConfiguration.h"
 #include "DoughServcieStatus.h"
 
 
@@ -41,6 +43,17 @@ Adafruit_VL53L0X lox = Adafruit_VL53L0X();
 //0x57 -  
 //0x68 - Time - DS3231
 
+//Sound - I2S
+#define I2S_DOUT      16 // Daata out pin
+#define I2S_BCLK      17 // I2S bit clock
+#define I2S_LRC       18 // I2S left right clock
+PlaySound playSound = PlaySound(I2S_BCLK, I2S_LRC, I2S_DOUT); 
+static const char* FermStartFile = "/FermStart.mp3";
+static const char* FermDoneFile = "/FermDone.mp3";
+static const char* FermErrorFile = "/FermError.mp3";
+static const char* DeviceConnFile = "/DeviceConn.mp3";
+static const char* DeviceDisConnFile = "/DeviceDisConn.mp3";
+
 //Dough config
 uint8_t currDoughDist = 0;
 uint8_t defaultDist = 0;
@@ -51,13 +64,18 @@ int minDoughHeight = 20;
 int floorDist=0;
 
 //Pixel
-LedDough leds;
+#define PIXELDATAPIN    12
+#define NUMPIXELS 3 
+LedDough leds(PIXELDATAPIN, NUMPIXELS);
 
 //Service Status
 DoughServcieStatus doughServcieStatus;
+//Configuration File
+const char *configurationFileName = "/Configuration.json";
+DoughConfiguration doughConfiguration(configurationFileName);
 
 //BLE
-BLEDoughHeight xBleDoughHeight(&doughServcieStatus);
+BLEDoughHeight xBleDoughHeight(&doughServcieStatus, &doughConfiguration);
 
 // Service Status files
 const char *lastSettingsFileName = "/LastSettings.json";
@@ -65,11 +83,6 @@ const char *lastSettingsFileName = "/LastSettings.json";
 // Cup List
 const char *cupsListFileName = "/Cups.json";
 std::map<std::string, DoughCup> cupsMap;
-
-//pn352 0x24
-#define PN532_IRQ   (15)
-#define PN532_RESET (4)  // Not connected by default on the NFC Shield
-Adafruit_PN532 nfc(PN532_IRQ, PN532_RESET);
 
 //general 
 const int DELAY_BETWEEN_CARDS = 1000;//500 caused issue 
@@ -87,7 +100,7 @@ bool encounteredCupError = false;
 DoughServcieStatusEnum statusBeforeCupError;
 
 //interval
-unsigned long sendIntervalLow = 2250; //5000
+unsigned long sendIntervalLow = 4000; //5000
 unsigned long sendInterval = sendIntervalLow;
 unsigned long sendIntervalHigh = sendIntervalLow/4;
 unsigned long lastSentTime = 0;
@@ -110,11 +123,12 @@ DateTime ParseDateTime(const char* timestampStr) {
 bool isReadingStable() {
   float deviation = avgDistance.Stdev();
   // Serial.printf("Reading deviation: %2f%\n", deviation);
-  return (deviation <= 1.25);
+  return (deviation <= 1.15);
 }
 
 
 // Saves Dough Service Startus to a file
+
 void saveStatus() {
 
   if (SPIFFS.exists(lastSettingsFileName)) {
@@ -140,7 +154,7 @@ void saveStatus() {
   DateTime startTime = doughServcieStatus.getFermentationStart();
   doc["FermentationStart"] = startTime.toString(strFormat);
   doc["DoughInitDist"] = doughServcieStatus.getDoughInitDist();
-  doc["CupBaseDis"] = doughServcieStatus.getCupBaseDist();
+  doc["CupBaseDis"] = doughConfiguration.getCupBaseHeight();
 
   // Serialize JSON to file
   if (serializeJson(doc, file) == 0) {
@@ -200,10 +214,11 @@ void readStatus() {
       if (diffInMin < fermentationAgingSpan) {
         //Continue fermentation
         Serial.printf("Continue fermentation.\n");
-        doughServcieStatus.setDoughServcieStatusEnum(DoughServcieStatusEnum::Fermenting, "Start Fermentation");
+        doughServcieStatus.setDoughServcieStatusEnum(DoughServcieStatusEnum::Fermenting, "Continue Fermentation");
         doughServcieStatus.setFermentationStart(fermStarted);
         doughServcieStatus.setDoughInitDist(doc["DoughInitDist"]);
-        doughServcieStatus.setCupBaseDist(doc["CupBaseDis"]);
+        // doughConfiguration.setCupBaseHeight(doc["CupBaseDis"]);
+        //ContFermenting();
       } else {
         Serial.printf("Ignoring Saved status - Past a long time since last run.\n");    
       }
@@ -328,13 +343,18 @@ void listDir() {
 
 
 void ErrorHandeling(std::string errorMsg) {
-    Serial.printf("Dough Service Error %s.\n", errorMsg.c_str());
+    Serial.printf("Dough Service Error: '%s'.\n", errorMsg.c_str());
 
     //set status
     doughServcieStatus.setDoughServcieStatusEnum(DoughServcieStatusEnum::Error, errorMsg);
 
     //Set Light status
     leds.Error();
+
+    //sound
+    if(!playSound.isRunning()) {
+      playSound.playSound(FermErrorFile);
+    }
 
     //update BLE device status changed
     xBleDoughHeight.sendStatustData(doughServcieStatus.getDoughServcieStatusEnum(), errorMsg);
@@ -363,6 +383,11 @@ void ClientConnected() {
   if (currStatus == DoughServcieStatusEnum::idle) {
     leds.BleConnected();
   }
+
+  //sound
+  if(!playSound.isRunning()) {
+    playSound.playSound(DeviceConnFile);
+  }
 }
 
 void ClientDisConnected() {
@@ -372,14 +397,19 @@ void ClientDisConnected() {
   if (currStatus == DoughServcieStatusEnum::idle) {
     leds.idle();
   }
+
+  //sound
+  if(!playSound.isRunning()) {
+    playSound.playSound(DeviceDisConnFile);
+  }
 }
 
-void StartFermentation() {
+void StartFermentationAction() {
   if (!cupPresence) {
     ErrorHandeling("Cant start process, Cup Not Pressent");
   } else if (currDoughDist == 0) {
     ErrorHandeling("Cant start process, Distance = 0.");
-  } else if (abs(currDoughDist - doughServcieStatus.getCupBaseDist()) < minDoughHeight) {
+  } else if (abs(currDoughDist - doughConfiguration.getCupBaseHeight()) < minDoughHeight) {
     ErrorHandeling("Cant start process, Dough level is too low.");
   } else {
     //check that reading is stable
@@ -404,6 +434,11 @@ void StartFermentation() {
     //Set Light status
     leds.Fermenting();
 
+    //sound
+    if(!playSound.isRunning()) {
+      playSound.playSound(FermStartFile);
+    }
+
     //update BLE device status changed
     xBleDoughHeight.sendStatustData(doughServcieStatus.getDoughServcieStatusEnum());
 
@@ -413,7 +448,7 @@ void StartFermentation() {
 }
 
 void ContFermenting() {
-  Serial.println(F("Continue Fermentation Process."));
+  // Serial.println(F("Continue Fermentation Process."));
 
   //set status
   doughServcieStatus.setDoughServcieStatusEnum(DoughServcieStatusEnum::Fermenting);
@@ -425,7 +460,7 @@ void ContFermenting() {
   xBleDoughHeight.sendStatustData(doughServcieStatus.getDoughServcieStatusEnum());
 }
 
-void StopFermentation() {
+void StopFermentationAction() {
   Serial.println(F("Stop Fermentation Process."));
 
   //set status
@@ -454,10 +489,13 @@ void ReachedDesiredFermentation() {
   //update BLE device status changed
   xBleDoughHeight.sendStatustData(doughServcieStatus.getDoughServcieStatusEnum());
 
-  //Make some sounds for
-  digitalWrite(BUZZ_PIN, HIGH);
-  delay(1250);
-  digitalWrite(BUZZ_PIN, LOW);
+  //sound
+  if(!playSound.isRunning()) {
+    playSound.playSound(FermDoneFile);
+  }
+  // digitalWrite(BUZZ_PIN, HIGH);
+  // delay(1250);
+  // digitalWrite(BUZZ_PIN, LOW);
 }
 
 void OverFermentation() {
@@ -479,19 +517,25 @@ void CalibrateOffset() {
   //   int32_t *pOffsetMicroMeter);
 }
 
+void UpdateConfiguration() { //ToDo - Implement
+    //save configuration
+    Serial.println("Configuration chnaged, Update Configuration File");
+    doughConfiguration.SaveConfigurationToFile();
+}
+
 
 class DoughServiceBLECallback: public DoughServiceBLECallbacks {
 public:
   void onStart() {
-    StartFermentation();
+    StartFermentationAction();
   }
 
   void onStop() {
-    StopFermentation();
+    StopFermentationAction();
   }
 
-  void onGeneralAction() {
-    CalibrateOffset();
+  void onConfigurationChanged() {
+    UpdateConfiguration();
   }
 
   void onConnect() {
@@ -503,76 +547,6 @@ public:
   }
 };
 
-
-NfcId handleCardDetected() {
-  
-  NfcId retUId;
-  bool success;
-
-  Serial.println("Handelling");
-
-  // Buffer to store the UID
-  uint8_t uid[7] = { 0, 0, 0, 0, 0, 0, 0 };
-  // UID size (4 or 7 bytes depending on card type)
-  uint8_t uidLength;
-
-  // read the NFC tag's info
-  success = nfc.readDetectedPassiveTargetID(uid, &uidLength);
-  if (success) {
-
-    retUId.setIds(uid);
-    // If the card is detected, print the UID
-    Serial.print("Size of UID: "); Serial.print(uidLength, DEC);
-    Serial.println(" bytes");
-    Serial.print("UID: ");
-    Serial.print(retUId.str().c_str());
-    Serial.println("\n\n");
-  } else {
-      Serial.println("Read failed (not a card?)");
-  }
-
-  // The reader will be enabled again after DELAY_BETWEEN_CARDS ms will pass.
-  readerDisabled = true;
-  cardReadWaiting = false;
-  timeLastCardRead = millis();
-  return retUId;
-}
-
-void IRAM_ATTR detectsNFCCard() {
-  Serial.printf("\nNFC Card detected Interupt ... %lu\n", micros() );
-  detachInterrupt(PN532_IRQ); 
-  cardReadWaiting = true;
-}
-
-void startListeningToNFC() {
-  Serial.println("StartListeningToNFC - Waiting for card (ISO14443A Mifare)...");
-
-  //Enable interrupt after starting NFC
-  nfc.startPassiveTargetIDDetection(PN532_MIFARE_ISO14443A);
-  attachInterrupt(PN532_IRQ, detectsNFCCard, FALLING); 
-}
-
-bool nfcConnect() {
-  
-  nfc.begin();
-
-  // Connected, show version
-  uint32_t versiondata = nfc.getFirmwareVersion();
-  if (! versiondata) {
-    Serial.println("\nDidn't find PN53x board !!!\n");
-    return false;
-  }
-
-  //port
-  Serial.print("Found chip PN5"); Serial.print((versiondata >> 24) & 0xFF, HEX);
-  Serial.print(", Firmware version: "); Serial.print((versiondata >> 16) & 0xFF, DEC);
-  Serial.print('.'); Serial.println((versiondata >> 8) & 0xFF, DEC);
-
-  // configure board to read RFID tags
-  nfc.SAMConfig();
-
-  return true;
-}
 
 void IRAM_ATTR CupStatusChangedInt() {
   // Object presence changed, Start timer and check
@@ -597,7 +571,7 @@ void IRAM_ATTR onCupPresenceTimerTimer() {
 
 void Setup_VL53L0X() {
   Serial.println("Adafruit VL53L0X Init\n");
-  if (!lox.begin(0x29, true)) {
+  if (!lox.begin(0x29, false)) {
     ErrorHandeling("Failed to boot VL53L0X\n");
     while(3000);
     //abort();
@@ -625,20 +599,18 @@ void setup() {
 
   pinMode(LED_BUILTIN, OUTPUT);
   pinMode(BUZZ_PIN, OUTPUT);
-  pinMode(PN532_IRQ, INPUT_PULLUP);
   pinMode(CUP_PRESENCE_IRQ, INPUT);
 
   Serial.begin(115200);
   Serial.println("\n\n --- Starting Dough Fermentation Service ---");
 
-  //initiate value
-  floorDist = 255;
-  doughServcieStatus.setCupBaseDist(floorDist-15);
-
   //Start Pixel light
   leds.initLed();
   
-    //init BLE
+  //Sound
+  playSound.setVolume(10);
+
+  //init BLE
   xBleDoughHeight.initBLE();
   xBleDoughHeight.regDoughServiceBLECallback(new DoughServiceBLECallback());
 
@@ -649,12 +621,10 @@ void setup() {
     delay(3000);
     // abort();
   }
-
   if (rtc.lostPower()) {
     Serial.println("RTC is NOT running!");
     rtc.adjust(DateTime(__DATE__, __TIME__));
   }
-  
   DateTime currTime = rtc.now();
   char strFormat[25];
   String cTimeStr = currTime.timestamp(DateTime::timestampOpt::TIMESTAMP_FULL);
@@ -665,13 +635,6 @@ void setup() {
   Setup_VL53L0X();
   uint8_t tmpDist = VL53L0X_Dist();
   avgDistance.SetAll(tmpDist);
-
-  //Start NFC
-  if (!nfcConnect()) {
-    ErrorHandeling("Failed to initialize NFC tag reader."); 
-    delay(3000);
-    // abort();
-  }  
 
   //cup interupt
   cupPresence = !digitalRead(CUP_PRESENCE_IRQ);
@@ -688,30 +651,30 @@ void setup() {
   // Serial.print(" >> APB Freq:   "); Serial.println(getApbFrequency());
 
   //Start SPIFF
-  Serial.println("\nStarting SPIFFS");
+  Serial.println("Starting SPIFFS");
 
   if(!SPIFFS.begin(true)){
     Serial.println("An Error has occurred while mounting SPIFFS");
     Serial.flush();
     delay(3000);
-    abort();
+    // abort();
   }
 
+  //Read Config files
+  if (!doughConfiguration.LoadConfigurationFromFile()) {
+    Serial.println("Failed to load Configuration file, using default values.");
+  }
+  doughConfiguration.PrintConfiguration();
+  floorDist = doughConfiguration.getFloorDist();
+  Serial.println();
+  
+  //Sound
+  playSound.setVolume(10);
+  
   //Read Service status 
-  readStatus(); 
-
-  //read cup files
-  readCups();
-  Serial.printf("Cup size: %d\n", cupsMap.size());
-  // for (std::pair<std::string, DoughCup> element : cupsMap) {
-  //     Serial.print(element.first.c_str());
-  //     Serial.print(": ");
-  //     Serial.print(element.second.c_str());
-  //     Serial.println();
-  // }
+  readStatus();
+  Serial.println("\n");
  
-  // startListeningToNFC();// For  testing
-
   delay(750);
 }
 
@@ -720,23 +683,7 @@ void loop() {
 
   //check if there is NFC Card Detected.
   bool pastDelayTime = true;
-  if (cardReadWaiting) { 
-    //NFC found, read card
-    NfcId nfcId = handleCardDetected();
-    if (nfcId.isEmpty()) {
-      //Error
-    }
-
-    // check against current status, get cup details
-    DoughCup cupDetected = cupsMap[nfcId.str()];
-    int newCupH = cupDetected.getCupHeight();
-    int currCupH = doughServcieStatus.getCupBaseDist();
-    if (newCupH != currCupH) {
-      //Cup Changed...
-
-    }
-
-  } else if (readerDisabled) {
+  if (readerDisabled) {
     if (millis() - timeLastCardRead > DELAY_BETWEEN_CARDS) {
       readerDisabled = false;
       pastDelayTime = true;
@@ -750,12 +697,12 @@ void loop() {
       cupPresenceLast = cupPresence;
       if (cupPresence) {
         //cup presence - try to read NFC
-        startListeningToNFC();// doesnt work within int cup
+        // startListeningToNFC();// doesnt work within int cup
       }
     }
   }
   
-  if (xBleDoughHeight.isClientDeviceConnected()) {
+  // if (xBleDoughHeight.isClientDeviceConnected()) {
     
     //check if stable, if not increase freq
     bool stable = isReadingStable();
@@ -766,14 +713,14 @@ void loop() {
 
       lastSentTime = now;
 
-	    if (!cupPresence) {
+      if (!cupPresence) {
         if (!encounteredCupError) {
           encounteredCupError = true;
           statusBeforeCupError = doughServcieStatus.getDoughServcieStatusEnum();
           Serial.printf("Cup Error, Save current status %d\n", statusBeforeCupError);
         }
-	      ErrorHandeling("Cup Not Pressent");
-	    } else {
+        ErrorHandeling("Cup Not Pressent");
+      } else {
         if (encounteredCupError) {
           encounteredCupError = false;
           //cup restored, restore latest status
@@ -799,6 +746,7 @@ void loop() {
         uint8_t tmpDist = VL53L0X_Dist();
         avgDistance.Insert(tmpDist);
         currDoughDist = (uint8_t)avgDistance.Avg();
+        int baseDist = floorDist - doughConfiguration.getCupBaseHeight();
              
         if ((doughServcieStatus.getDoughServcieStatusEnum() == DoughServcieStatusEnum::Fermenting) ||
           (doughServcieStatus.getDoughServcieStatusEnum() == DoughServcieStatusEnum::ReachedDesiredFerm)|| 
@@ -806,22 +754,22 @@ void loop() {
 
           //broadcast height & Percentage
           int initDist = doughServcieStatus.getDoughInitDist();
-          int baseDist = doughServcieStatus.getCupBaseDist();
-          
-          float fermPercent = (initDist - currDoughDist)/(float)(baseDist - initDist);
-          // Serial.printf("Dough Fermentation BaseDist:%d InitDist:%d currDist:%d = %f2%%\n", baseDist, initDist, currDoughDist, fermPercent*100);
-          Serial.printf("Dough Fermentation Base Height:%d \tInit Dough Height:%d \tCurrent Ferm Height:%d = %2f%%\n", 
-                        floorDist - baseDist, baseDist - initDist, initDist - currDoughDist, fermPercent*100);
+          int doughHieght = initDist - currDoughDist;
+          float fermPercent = (doughHieght)/(float)(baseDist - initDist);
+          Serial.printf("Init Dough Height:%d \tCurrent Ferm Height:%d = %2f2%%\n", 
+                        baseDist - initDist, doughHieght, fermPercent*100);
 
-          doughServcieStatus.setDoughHeight(currDoughDist);
-          xBleDoughHeight.sendHeightData(currDoughDist);
+          doughServcieStatus.setDoughHeight(doughHieght);
+          xBleDoughHeight.sendHeightData(doughHieght);
           doughServcieStatus.setFermPercentage(fermPercent);
           xBleDoughHeight.sendDoughFermPercentData(fermPercent);
 
 
           //check if reached desired fermentation status
-          float desiredPercentage = doughServcieStatus.getDesiredFermPercentage();
-          if (fermPercent > (desiredPercentage + doughServcieStatus.getOverFermPercentage())) {
+          float desiredPercentage = doughConfiguration.getDesiredFermPercentage();
+          /*if (fermPercent < -0.15) {
+            ErrorHandeling("Dough Height is out of scope"); //Todo - Need to improve recovery, until then ...
+          } else */if (fermPercent > (desiredPercentage + doughConfiguration.getOverFermPercentage())) {
             OverFermentation();
           } else if (fermPercent > desiredPercentage) {
             ReachedDesiredFermentation();
@@ -829,14 +777,14 @@ void loop() {
             ContFermenting();
           }
         } else {
-          Serial.printf("Distance measured = %2d (%d) mm.\t Height = %2d (%d)\n", currDoughDist, tmpDist, floorDist - currDoughDist, floorDist - tmpDist);
-          xBleDoughHeight.sendHeightData(currDoughDist);
-
-          // avgDistance.printDebug();
+          // Serial.printf("Distance measured = %2d (%d) mm.\t Height = %2d (%d)\n", currDoughDist, tmpDist, floorDist - currDoughDist, floorDist - tmpDist);
+          Serial.printf("Dist To Floor %d\t Base Height %d\t | \tDistance measured = %2dmm (%d)\t --> \tCurrent Dough Height = %2dmm (%d)\n", 
+            floorDist, floorDist - baseDist, currDoughDist, tmpDist, baseDist - currDoughDist, baseDist - tmpDist);
+          xBleDoughHeight.sendHeightData(baseDist - currDoughDist);
         }
       }
     }
-  }
+  // }/}
   // delay(500); //causing issues with BLE & NFC
 }
 

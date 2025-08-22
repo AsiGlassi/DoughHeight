@@ -6,24 +6,27 @@
 #include <BLEUtils.h>
 #include <BLE2902.h>
 
+#include "DoughConfiguration.h"
 #include "DoughServcieStatus.h"
+#include "BLEDoughHeightCharacteristic.h"
 
 
-//#define DEBUG_BLE false
+//#define DEBUG_BLE true
 
 //BLE Dough Height service call back type
 typedef void (*BleDoughServiceCallbackFunction)(void);
 
-// #define UART_SERVICE_UUID      "6E400001-B5A3-F393-E0A9-E50E24DCCA9E" // UART service UUID
-// #define CHARACTERISTIC_UUID_RX "6E400002-B5A3-F393-E0A9-E50E24DCCA9E"
-// #define CHARACTERISTIC_UUID_TX "6E400003-B5A3-F393-E0A9-E50E24DCCA9E"
 #define DOUGH_DEVICE_NAME "Asi Dough Height"
-#define DOUGH_HEIGHT_SERVICE_UUID   "3ee2ffbe-e236-41f2-9c40-d44563ddc614"
+#define DOUGH_DOUGH_FERMENTATION_SERVICE_UUID   "3ee2ffbe-e236-41f2-9c40-d44563ddc614"
+
 #define CHARACTERISTIC_HEIGHT_UUID  "7daf9c2b-715c-4a1c-b889-1ccd50817186"
 #define CHARACTERISTIC_FERMENTATION_UUID  "8d0ca8ce-5c66-4e31-ba1a-48868601ec25"
-#define CHARACTERISTIC_START_UUID  "fc70539e-2e17-4cf8-b7e2-4375fc7ded5a"
 #define CHARACTERISTIC_STATUS_UUID  "a1990b88-249f-45b2-a0b2-ba0f1f90ca0a"
-#define CHARACTERISTIC_DESIRED_FERMENTATION_UUID  "b1f4f8ec-efd5-4fd9-be66-09bbb9baa1da"
+#define CHARACTERISTIC_SESSION_STATUS_UUID  "90e0676a-eae2-4878-9a6f-61090aac8837"
+#define CHARACTERISTIC_CONFIGURATION_UUID  "b164f891-400a-439f-95d2-659973c18df4"
+#define CHARACTERISTIC_DESIRED_FERMENTATION_UUID  "12b53266-d7e6-482c-ba98-8043bef8b110"
+
+#define CHARACTERISTIC_COMMAND_UUID  "fc70539e-2e17-4cf8-b7e2-4375fc7ded5a"
 
 
 class DoughServiceBLECallbacks {
@@ -33,7 +36,7 @@ public:
 	virtual void onDisConnect();
 	virtual void onStart();
 	virtual void onStop();
-    virtual void onGeneralAction();
+    virtual void onConfigurationChanged();
 };
 
 
@@ -45,29 +48,33 @@ class BLEDoughHeight
     BLECharacteristic* pHeightCharacteristic;
     BLECharacteristic* pFermPercentageCharacteristic;
     BLECharacteristic* pCommandCharacteristic;
+    BLECharacteristic* pSessionCharacteristic;
+    BLECharacteristic* pConfigurationCharacteristic;
+    BLECharacteristic* pDesiredFermPercentageCharacteristic;
     BLECharacteristic* pStatusCharacteristic;
-    BLECharacteristic* pDesiredFermPercentCharacteristic;
 
     BLEAdvertising *pAdvertising;
 
     DoughServiceBLECallbacks* bleDoughHeightCallback = NULL;
 
     bool deviceConnected = false;
+    DoughConfiguration* bleDoughConfiguration = NULL;
     DoughServcieStatus* bleDoughServcieStatus = NULL;
    
 
 public:
 
-    BLEDoughHeight(DoughServcieStatus* dServcieStatus) {bleDoughServcieStatus = dServcieStatus;}
+    BLEDoughHeight(DoughServcieStatus* dServcieStatus, DoughConfiguration* dConfiguration) {bleDoughServcieStatus = dServcieStatus; bleDoughConfiguration = dConfiguration;}
     void initBLE();
 
     void setDeviceConnected(bool conn);
     bool isClientDeviceConnected();
 
-    DoughServcieStatus getBleDoughServcieStatus() {return *bleDoughServcieStatus;}
+    DoughConfiguration* getBleDoughConfiguration() {return bleDoughConfiguration;}
+    DoughServcieStatus* getBleDoughServcieStatus() {return bleDoughServcieStatus;}
 
     float getDoughFermentationPercent() {return bleDoughServcieStatus->getFermPercentage();}
-    void sendHeightData(uint8_t doughHeight);
+    void sendHeightData(int doughHeight);
     void sendDoughFermPercentData(float doughFermenPercent);
     void sendStatustData(DoughServcieStatusEnum status);
     void sendStatustData(DoughServcieStatusEnum status, std::string);
@@ -75,9 +82,9 @@ public:
     void StartFermentation();
     void StopFermentation();
     void GeneralAction();
+    void UpdateConfigurationAction(); 
     void regDoughServiceBLECallback(DoughServiceBLECallbacks* pCallback) {bleDoughHeightCallback = pCallback;}
 };
-
 
 
 class DeviceSecurityCallbacks : public BLESecurityCallbacks {
@@ -156,76 +163,6 @@ public:
         Serial.println("Device Disconnected");
         pServer->startAdvertising(); 
     };
-};
-
-
-class heightCharacteristicCB: public BLECharacteristicCallbacks {
-
-    BLEDoughHeight* pBleDoughHeight;
-
-public:
-    heightCharacteristicCB(BLEDoughHeight* pinDoughHeight) {
-        pBleDoughHeight = pinDoughHeight;
-    }
-
-    void onWrite(BLECharacteristic *pCharacteristic);
-    void onRead(BLECharacteristic *pCharacteristic);
-};
-
-
-class FermPercentageCharacteristicCB: public BLECharacteristicCallbacks {
-    
-    BLEDoughHeight* pBleDoughHeight;
-
-public:
-    FermPercentageCharacteristicCB(BLEDoughHeight* pinDoughHeight) {
-        pBleDoughHeight = pinDoughHeight;
-    }
-
-    void onWrite(BLECharacteristic *pCharacteristic);
-    void onRead(BLECharacteristic *pCharacteristic);
-};
-
-
-class CommandCharacteristicCB: public BLECharacteristicCallbacks {
-    
-    BLEDoughHeight* pBleDoughHeight;
-
-public:
-    CommandCharacteristicCB(BLEDoughHeight* pinDoughHeight) {
-        pBleDoughHeight = pinDoughHeight;
-    }
-
-    void onWrite(BLECharacteristic *pCharacteristic);
-    void onRead(BLECharacteristic *pCharacteristic);
-};
-
-
-class StatusCharacteristicCB: public BLECharacteristicCallbacks {
-
-    BLEDoughHeight* pBleDoughHeight;
-
-public:
-    StatusCharacteristicCB(BLEDoughHeight* pinDoughHeight) {
-        pBleDoughHeight = pinDoughHeight;
-    }
-
-    void onWrite(BLECharacteristic *pCharacteristic);
-    void onRead(BLECharacteristic *pCharacteristic);
-};
-
-
-class DesiredFermPercentageCharacteristicCB: public BLECharacteristicCallbacks {
-
-    BLEDoughHeight* pBleDoughHeight;
-
-public:
-    DesiredFermPercentageCharacteristicCB(BLEDoughHeight* pinDoughHeight) {
-        pBleDoughHeight = pinDoughHeight;
-    }
-
-    void onWrite(BLECharacteristic *pCharacteristic);
-    void onRead(BLECharacteristic *pCharacteristic);
 };
 
 #endif

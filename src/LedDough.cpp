@@ -54,7 +54,7 @@ void LedDough::StartFadeLedTask(uint32_t color) {
     if (!FadeLedTaskRunning) {//(String)eTaskGetState(&BlinkLedTaskHandle)
         xTaskCreate(this->LedBlinkingTask, /* Function to implement the task */
                           "FadeLedTask", /* Name of the task */
-                          1024,  /* Stack size in words */
+                          1540,  /* Stack size in words */
                           this,  /* Task input parameter */
                           0,  /* Priority of the task */
                           &BlinkLedTaskHandle  /* Task handle. */
@@ -75,7 +75,7 @@ void LedDough::LedBlinkingTask( void * pvParameters ) {
     // Serial.println(taskMessage);  //log para o serial monitor
 
     uint16_t deg = 90;
-    uint8_t degStep = 15;
+    uint8_t degStep = 10;
     uint32_t origColor = pLedDough->selectedColor;
     uint16_t curr_r, curr_g, curr_b;
     curr_b = origColor & 0x00FF; curr_g = (origColor >> 8) & 0x00FF; curr_r = (origColor >> 16) & 0x00FF;  // separate into RGB components
@@ -94,7 +94,7 @@ void LedDough::LedBlinkingTask( void * pvParameters ) {
         pLedDough->strip.fill(pLedDough->strip.gamma32(newColor));
         pLedDough->strip.show();
         
-        vTaskDelay(125 / portTICK_PERIOD_MS);
+        vTaskDelay(50 / portTICK_PERIOD_MS);
     } 
 
     delay(50); //Wait a little before killing task

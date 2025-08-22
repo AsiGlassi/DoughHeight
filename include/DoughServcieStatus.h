@@ -20,16 +20,7 @@ private:
 
   // he dough initial height, represented by distance.
   int m_doughInitDist = 0;
-
-  // The cup base height, represented by the distance. essential for understand the initiate height of the dough and fermentation calculation..
-  int m_cupBaseDist = 0;
-
-  // Desired Fermentation Percentage - What is the desired fermentation amount.
-  float m_desiredFermPercentage = 0.10;
-
-  // Fermentation Percentage above the desired fermentation percentage, will be recognized as Over Fermentation Percentage
-  float m_overFermPercentage = 0.07;
-
+ 
   // Service Status
   DoughServcieStatusEnum m_doughServcieStatusEnum = DoughServcieStatusEnum::idle;
   std::string m_serviceMessage = "Idle";
@@ -62,20 +53,7 @@ public:
     m_doughInitDist = initDist;
   }
 
-  int getCupBaseDist() {
-    return m_cupBaseDist;
-  }
-  void setCupBaseDist(int capBaseDist) {
-    m_cupBaseDist = capBaseDist;
-  }
-
-  float getDesiredFermPercentage() { return m_desiredFermPercentage; }
-  void setDesiredFermPercentage(float desiredPercentage) { m_desiredFermPercentage = desiredPercentage; }
-
-  float getOverFermPercentage() { return m_overFermPercentage; }
-  void setOverFermPercentage(float overFermPercentage) { m_overFermPercentage = overFermPercentage; }
-
-  uint8_t getDoughHeight() {
+   uint8_t getDoughHeight() {
     return m_doughHeight;
   }
   void setDoughHeight(uint8_t doughHeight) {
