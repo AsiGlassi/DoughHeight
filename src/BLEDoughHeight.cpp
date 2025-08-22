@@ -111,6 +111,20 @@ void BLEDoughHeight::initBLE() {
 
     pConfigurationCharacteristic->setValue("N/A");
 
+    //Desired Fermentation Percentage 
+    pDesiredFermPercentageCharacteristic = pService->createCharacteristic(
+										CHARACTERISTIC_DESIRED_FERMENTATION_UUID,
+                                        BLECharacteristic::PROPERTY_READ |
+                                        BLECharacteristic::PROPERTY_WRITE
+									);
+    pDesiredFermPercentageCharacteristic->setCallbacks(new DesiredFermPercentageCharacteristicCB(this));
+
+    BLEDescriptor* desiredFermRWDescriptor = new BLEDescriptor(BLEUUID((uint16_t)0x2901));
+    desiredFermRWDescriptor->setValue("Desired Fermentation Percentage");
+    pDesiredFermPercentageCharacteristic->addDescriptor(desiredFermRWDescriptor);
+
+    pDesiredFermPercentageCharacteristic->setValue("N/A");
+
 
     //Satus
     pStatusCharacteristic = pService->createCharacteristic(
@@ -142,16 +156,16 @@ void BLEDoughHeight::initBLE() {
     Serial.println(F("BLE Dough Height Server Started\n"));  
 }
 
-    void BLEDoughHeight::setDeviceConnected(bool conn) {
-        deviceConnected = conn;
-        if (bleDoughHeightCallback != NULL) {
-            if(deviceConnected) {
-                bleDoughHeightCallback->onConnect(); 
-            } else {
-                bleDoughHeightCallback->onDisConnect();
-            }
+void BLEDoughHeight::setDeviceConnected(bool conn) {
+    deviceConnected = conn;
+    if (bleDoughHeightCallback != NULL) {
+        if(deviceConnected) {
+            bleDoughHeightCallback->onConnect(); 
+        } else {
+            bleDoughHeightCallback->onDisConnect();
         }
     }
+}
 
 
 bool BLEDoughHeight::isClientDeviceConnected() {
@@ -202,6 +216,8 @@ void BLEDoughHeight::sendStatustData(DoughServcieStatusEnum status, std::string 
     pStatusCharacteristic->notify();
 }
 
+
+/*Action Session -- Commands Write Execution*/
 void BLEDoughHeight::StartFermentation() {
     if (bleDoughHeightCallback != NULL) {
         bleDoughHeightCallback->onStart();

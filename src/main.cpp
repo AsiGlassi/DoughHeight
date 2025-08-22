@@ -70,16 +70,15 @@ LedDough leds(PIXELDATAPIN, NUMPIXELS);
 
 //Service Status
 DoughServcieStatus doughServcieStatus;
-DoughConfiguration doughConfiguration;
+//Configuration File
+const char *configurationFileName = "/Configuration.json";
+DoughConfiguration doughConfiguration(configurationFileName);
 
 //BLE
-BLEDoughHeight xBleDoughHeight(&doughServcieStatus);
+BLEDoughHeight xBleDoughHeight(&doughServcieStatus, &doughConfiguration);
 
 // Service Status files
 const char *lastSettingsFileName = "/LastSettings.json";
-
-//Configuration File
-const char *configurationFileName = "/Configuration.json";
 
 // Cup List
 const char *cupsListFileName = "/Cups.json";
@@ -519,9 +518,9 @@ void CalibrateOffset() {
 }
 
 void UpdateConfiguration() { //ToDo - Implement
-    //set Confguration
-
     //save configuration
+    Serial.println("Configuration chnaged, Update Configuration File");
+    doughConfiguration.SaveConfigurationToFile();
 }
 
 
@@ -662,11 +661,12 @@ void setup() {
   }
 
   //Read Config files
-  if (!doughConfiguration.LoadConfigurationFromFile(configurationFileName)) {
+  if (!doughConfiguration.LoadConfigurationFromFile()) {
     Serial.println("Failed to load Configuration file, using default values.");
   }
   doughConfiguration.PrintConfiguration();
   floorDist = doughConfiguration.getFloorDist();
+  Serial.println();
   
   //Sound
   playSound.setVolume(10);

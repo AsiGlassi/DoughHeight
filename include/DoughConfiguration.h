@@ -21,7 +21,13 @@ class DoughConfiguration {
       // The cup base height, represented by the height.
       int m_cupBaseHeight = 10;
     
+      //Configuration file name
+      std::string m_configFileName;
+
     public:
+
+      // Constructor that takes the config file name
+      DoughConfiguration(const std::string& configFileName) : m_configFileName(configFileName) {}
 
       // Preaty print 
       void PrintConfiguration() {
@@ -47,9 +53,9 @@ class DoughConfiguration {
       std::string serializeToJson();
       void deserializeFromJson(const std::string& jsonString);
 
-      bool SaveConfigurationToFile(const char* fileName);
+      bool SaveConfigurationToFile();
 
-      bool LoadConfigurationFromFile(const char* fileName);
+      bool LoadConfigurationFromFile();
     };
     
     #endif

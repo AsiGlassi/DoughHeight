@@ -24,6 +24,7 @@ typedef void (*BleDoughServiceCallbackFunction)(void);
 #define CHARACTERISTIC_STATUS_UUID  "a1990b88-249f-45b2-a0b2-ba0f1f90ca0a"
 #define CHARACTERISTIC_SESSION_STATUS_UUID  "90e0676a-eae2-4878-9a6f-61090aac8837"
 #define CHARACTERISTIC_CONFIGURATION_UUID  "b164f891-400a-439f-95d2-659973c18df4"
+#define CHARACTERISTIC_DESIRED_FERMENTATION_UUID  "12b53266-d7e6-482c-ba98-8043bef8b110"
 
 #define CHARACTERISTIC_COMMAND_UUID  "fc70539e-2e17-4cf8-b7e2-4375fc7ded5a"
 
@@ -49,6 +50,7 @@ class BLEDoughHeight
     BLECharacteristic* pCommandCharacteristic;
     BLECharacteristic* pSessionCharacteristic;
     BLECharacteristic* pConfigurationCharacteristic;
+    BLECharacteristic* pDesiredFermPercentageCharacteristic;
     BLECharacteristic* pStatusCharacteristic;
 
     BLEAdvertising *pAdvertising;
@@ -62,14 +64,14 @@ class BLEDoughHeight
 
 public:
 
-    BLEDoughHeight(DoughServcieStatus* dServcieStatus) {bleDoughServcieStatus = dServcieStatus;}
+    BLEDoughHeight(DoughServcieStatus* dServcieStatus, DoughConfiguration* dConfiguration) {bleDoughServcieStatus = dServcieStatus; bleDoughConfiguration = dConfiguration;}
     void initBLE();
 
     void setDeviceConnected(bool conn);
     bool isClientDeviceConnected();
 
-    DoughConfiguration getBleDoughConfiguration() {return *bleDoughConfiguration;}
-    DoughServcieStatus getBleDoughServcieStatus() {return *bleDoughServcieStatus;}
+    DoughConfiguration* getBleDoughConfiguration() {return bleDoughConfiguration;}
+    DoughServcieStatus* getBleDoughServcieStatus() {return bleDoughServcieStatus;}
 
     float getDoughFermentationPercent() {return bleDoughServcieStatus->getFermPercentage();}
     void sendHeightData(int doughHeight);

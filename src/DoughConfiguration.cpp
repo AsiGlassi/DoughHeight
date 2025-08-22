@@ -26,9 +26,10 @@ void DoughConfiguration::deserializeFromJson(const std::string& jsonString) {
 }
 
 
-bool DoughConfiguration::SaveConfigurationToFile(const char* fileName) {
+bool DoughConfiguration::SaveConfigurationToFile() {
+    // Use m_configFileName instead of parameter
     std::string jsonString = serializeToJson();
-    File file = SPIFFS.open(fileName, "w");
+    File file = SPIFFS.open(m_configFileName.c_str(), "w");
     if (!file) {
         Serial.println("Failed to open configuration file for writing");
         return false;
@@ -38,8 +39,8 @@ bool DoughConfiguration::SaveConfigurationToFile(const char* fileName) {
     return true;
   }
 
-  bool DoughConfiguration::LoadConfigurationFromFile(const char* fileName) {
-    File file = SPIFFS.open(fileName, "r");
+  bool DoughConfiguration::LoadConfigurationFromFile() {
+    File file = SPIFFS.open(m_configFileName.c_str(), "r");
     if (!file) {
         Serial.println("Failed to open configuration file for reading");
         return false;
